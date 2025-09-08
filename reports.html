@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>مركز التقارير - نظام إدارة الفواتير</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <link rel="stylesheet" href="assets/css/styles.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <style>
+        .report-controls-top {
+            background-color: #fff; padding: 20px; border-radius: 10px;
+            margin-bottom: 30px; box-shadow: 0 5px 15px rgba(0,0,0,0.05);
+            border: 1px solid #e9ecef;
+        }
+        .filters-layout {
+            display: flex; flex-wrap: wrap; gap: 20px; align-items: flex-end;
+        }
+        .filter-group { display: none; }
+        .filter-group.active { display: flex; gap: 15px; align-items: flex-end; }
+        #collectorSearchInput { width: 250px; }
+    </style>
+</head>
+<body>
+    <div class="page-container">
+        <header class="page-header">
+            <div class="container">
+                <h1>مركز التقارير</h1>
+                <nav class="breadcrumb">
+                    <a href="dashboard.html">لوحة التحكم</a> / <span>التقارير</span>
+                </nav>
+            </div>
+        </header>
+
+        <main class="page-content">
+            <div class="container">
+                <div class="report-controls-top">
+                    <div class="filters-layout">
+                        <div class="form-group">
+                            <label for="reportTypeSelect"><strong>اختر نوع التقرير:</strong></label>
+                            <select id="reportTypeSelect" class="form-control">
+                                <option value="">-- اختر --</option>
+                                <option value="detailed-periodic">التقرير التفصيلي الدوري</option>
+                            </select>
+                        </div>
+
+                        <div id="date-range-filter-group" class="filter-group">
+                            <div class="form-group">
+                                <label for="startDate">من تاريخ:</label>
+                                <input type="date" id="startDate" class="form-control">
+                            </div>
+                            <div class="form-group">
+                                <label for="endDate">إلى تاريخ:</label>
+                                <input type="date" id="endDate" class="form-control">
+                            </div>
+                        </div>
+
+                        <div id="collectors-filter-group" class="filter-group">
+                             <div class="form-group">
+                                <label for="collectorSearchInput">المحصل:</label>
+                                <input type="text" id="collectorSearchInput" class="form-control" list="collectors-list" placeholder="ابحث بالاسم أو الكود...">
+                                <datalist id="collectors-list"></datalist>
+                            </div>
+                        </div>
+                        
+                        <button id="generateReportBtn" class="btn btn-primary" disabled><i class="fas fa-play-circle"></i> عرض التقرير</button>
+                        <button id="exportExcelBtn" class="btn btn-success" disabled><i class="fas fa-file-excel"></i> تصدير Excel</button>
+                    </div>
+                </div>
+
+                <section class="report-display">
+                    <div class="table-container" id="reportTableContainer">
+                        <p>النتائج ستظهر هنا...</p>
+                    </div>
+                </section>
+            </div>
+        </main>
+    </div>
+
+    <div id="toast" class="toast-notification"><p id="toastMessage"></p></div>
+
+    <script type="module">
+        import * as reportService from './assets/js/reports-service.js';
+        import { showToast } from './assets/js/utils.js';
+        
+        let currentReportData = [];
+        let allCollectors = [];
+
+        const reportTypeSelect = document.getElementById('reportTypeSelect');
+        const generateReportBtn = document.getElementById('generateReportBtn');
+        const exportExcelBtn = document.getElementById('exportExcelBtn');
+        const reportTableContainer = document.getElementById('reportTableContainer');
+        const collectorSearchInput = document.getElementById('collectorSearchInput');
+        const collectorsDatalist = document.getElementById('collectors-list');
+
+        async function initializePage() {
+            try {
+                const response = await fetch('http://localhost:3000/api/collectors');
+                if (!response.ok) throw new Error('فشل الاتصال بخادم المحصلين');
+                allCollectors = await response.json();
+                allCollectors.forEach(c => {
+                    const option = document.createElement('option');
+                    option.value = `${c.name} (${c.collectorCode})`;
+                    option.dataset.id = c._id;
+                    collectorsDatalist.appendChild(option);
+                });
+            } catch (error) {
+                showToast(error.message || 'فشل تحميل قائمة المحصلين', 'error');
+            }
+        }
+
+        function updateVisibleFilters() {
+            const selectedReport = reportTypeSelect.value;
+            document.querySelectorAll('.filter-group').forEach(group => group.classList.remove('active'));
+            generateReportBtn.disabled = true;
+            if (!selectedReport) return;
+
+            switch (selectedReport) {
+                case 'detailed-periodic':
+                    document.getElementById('date-range-filter-group').classList.add('active');
+                    document.getElementById('collectors-filter-group').classList.add('active');
+                    break;
+            }
+            generateReportBtn.disabled = false;
+        }
+
+        async function handleGenerateReport() {
+            const reportType = reportTypeSelect.value;
+            if (!reportType) return;
+
+            const filters = {};
+            if (document.getElementById('date-range-filter-group').classList.contains('active')) {
+                filters.startDate = document.getElementById('startDate').value;
+                filters.endDate = document.getElementById('endDate').value;
+                if (!filters.startDate || !filters.endDate) return showToast('الرجاء تحديد نطاق التاريخ', 'warning');
+            }
+            if (document.getElementById('collectors-filter-group').classList.contains('active')) {
+                const selectedValue = collectorSearchInput.value;
+                const selectedCollector = allCollectors.find(c => `${c.name} (${c.collectorCode})` === selectedValue);
+                filters.collectorId = selectedCollector ? selectedCollector._id : null;
+            }
+            
+            reportTableContainer.innerHTML = `<div class="loader"></div>`;
+            exportExcelBtn.disabled = true;
+            generateReportBtn.disabled = true;
+
+            try {
+                currentReportData = await reportService.generateReport(reportType, filters);
+                renderReport(reportType);
+                exportExcelBtn.disabled = currentReportData.length === 0;
+            } catch (error) {
+                reportTableContainer.innerHTML = `<p class="error-message">${error.message}</p>`;
+                currentReportData = [];
+            } finally {
+                generateReportBtn.disabled = false;
+            }
+        }
+
+        function renderReport(reportType) {
+            if (currentReportData.length === 0) {
+                reportTableContainer.innerHTML = '<p>لا توجد بيانات لعرضها بناءً على الفلاتر المحددة.</p>';
+                return;
+            }
+            const table = document.createElement('table');
+            table.className = 'data-table';
+            let theadHTML = '', tbodyHTML = '', tfootHTML = '';
+            
+            switch (reportType) {
+                case 'detailed-periodic':
+                    theadHTML = `<tr><th>المحصل</th> <th>التاريخ</th> <th>من سند</th> <th>إلى سند</th> <th>عدد السندات</th> <th>إجمالي التحصيل</th> <th>التوريد</th> <th>الصافي</th> <th>رقم سند التوريد</th> <th>تاريخ التوريد</th> <th>ملاحظات</th></tr>`;
+                    let totals = { count: 0, collected: 0, deposited: 0, net: 0 };
+                    currentReportData.forEach(row => {
+                         tbodyHTML += `<tr ${row.isMissing ? 'style="background-color: #fff5f5;"' : ''}><td>${row.collectorName}</td><td>${row.date}</td><td>${row.fromReceipt}</td><td>${row.toReceipt}</td><td>${row.receiptCount}</td><td>${row.totalAmount.toLocaleString('en-US')}</td><td>${(row.depositAmount || 0).toLocaleString('en-US')}</td><td>${(row.netAmount || 0).toLocaleString('en-US')}</td><td>${row.depositReceipt}</td><td>${row.depositDate}</td><td>${row.notes}</td></tr>`;
+                        if (!row.isMissing) {
+                            totals.count += row.receiptCount;
+                            totals.collected += row.totalAmount;
+                            totals.deposited += row.depositAmount || 0;
+                            totals.net += row.netAmount || 0;
+                        }
+                    });
+                    tfootHTML = `<tr><th colspan="4">الإجمالي</th><th>${totals.count}</th><th>${totals.collected.toLocaleString('en-US')}</th><th>${totals.deposited.toLocaleString('en-US')}</th><th>${totals.net.toLocaleString('en-US')}</th><th colspan="3"></th></tr>`;
+                    break;
+            }
+            table.innerHTML = `<thead>${theadHTML}</thead><tbody>${tbodyHTML}</tbody><tfoot>${tfootHTML}</tfoot>`;
+            reportTableContainer.innerHTML = '';
+            reportTableContainer.appendChild(table);
+        }
+
+        function handleExport() {
+            if (currentReportData.length === 0) return showToast('لا توجد بيانات لتصديرها.', 'warning');
+            const reportType = reportTypeSelect.value;
+            let dataToExport = [];
+            if (reportType === 'detailed-periodic') {
+                dataToExport = currentReportData.map(row => ({'اسم المحصل': row.collectorName, 'التاريخ': row.date, 'من سند': row.fromReceipt, 'إلى سند': row.toReceipt, 'عدد السندات': row.receiptCount, 'إجمالي التحصيل': row.totalAmount, 'التوريد': row.depositAmount, 'الصافي': row.netAmount, 'رقم سند التوريد': row.depositReceipt, 'تاريخ التوريد': row.depositDate, 'ملاحظات': row.notes}));
+            }
+            const ws = XLSX.utils.json_to_sheet(dataToExport);
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, "Report");
+            XLSX.writeFile(wb, `${reportType}_Export.xlsx`);
+            showToast('تم تصدير التقرير بنجاح', 'success');
+        }
+
+        document.addEventListener('DOMContentLoaded', initializePage);
+        reportTypeSelect.addEventListener('change', updateVisibleFilters);
+        generateReportBtn.addEventListener('click', handleGenerateReport);
+        exportExcelBtn.addEventListener('click', handleExport);
+    </script>
+</body>
+</html>

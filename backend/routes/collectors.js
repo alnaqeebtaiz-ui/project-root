@@ -2,6 +2,7 @@
 const express = require('express');
 const router = express.Router();
 
+
 // استيراد "نموذج المحصل" الذي أنشأناه
 const Collector = require('../models/Collector');
 
@@ -89,3 +90,4 @@ router.delete('/:id', async (req, res) => {
 
 // تصدير الراوتر لكي يتمكن الخادم الرئيسي من استخدامه
 module.exports = router;
+
