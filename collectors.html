@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>إدارة المحصلين - برنامج إدارة فواتير الكهرباء</title>
+    <!-- Your Custom Stylesheet -->
+    <link rel="stylesheet" href="assets/css/styles.css">
+</head>
+<body>
+
+    <div class="page-container">
+        <!-- =========== Page Header =========== -->
+        <header class="page-header">
+            <div class="container">
+                <h1>إدارة المحصلين</h1>
+                <nav class="breadcrumb">
+                    <a href="dashboard.html">لوحة التحكم</a> / <span>إدارة المحصلين</span>
+                </nav>
+            </div>
+        </header>
+
+        <!-- =========== Main Page Content =========== -->
+        <main class="page-content">
+            <div class="container">
+                
+                <div class="action-bar">
+                    <button id="addCollectorBtn" class="btn btn-primary">إضافة محصل جديد</button>
+                    <div class="search-bar" style="margin-right: auto;">
+                        <input type="text" id="searchInput" placeholder="البحث بالاسم أو الكود..." class="search-input">
+                    </div>
+                </div>
+                
+                <div class="table-container">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>#</th>
+                                <th>كود المحصل</th>
+                                <th>اسم المحصل</th>
+                                <th>الرصيد الافتتاحي</th>
+                                <th style="text-align: center;">الإجراءات</th>
+                            </tr>
+                        </thead>
+                        <tbody id="collectorsTableBody">
+                             <tr><td colspan="5" style="text-align: center; padding: 2rem;">جاري تحميل البيانات...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+            </div>
+        </main>
+    </div>
+    
+    <!-- =========== Add/Edit Collector Modal =========== -->
+    <div id="collectorModal" class="modal">
+        <div class="modal-content">
+            <header class="modal-header">
+                <h2 id="modalTitle">إضافة محصل جديد</h2>
+                <button id="closeModalBtn" class="close-btn">&times;</button>
+            </header>
+            <form id="collectorForm">
+                <div class="modal-body">
+                    <input type="hidden" id="collectorId" name="id">
+                    <div class="form-group">
+                        <label for="collectorCode">كود المحصل:</label>
+                        <input type="text" id="collectorCode" name="collectorCode" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="collectorName">اسم المحصل:</label>
+                        <input type="text" id="collectorName" name="name" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="openingBalance">الرصيد الافتتاحي:</label>
+                        <input type="number" id="openingBalance" name="openingBalance" step="any" required value="0">
+                    </div>
+                </div>
+                <footer class="modal-footer">
+                    <button type="button" id="cancelBtn" class="btn btn-secondary">إلغاء</button>
+                    <button type="submit" id="saveBtn" class="btn btn-primary">حفظ</button>
+                </footer>
+            </form>
+        </div>
+    </div>
+    
+    <!-- =========== Delete Confirmation Modal =========== -->
+    <div id="deleteConfirmationModal" class="modal">
+        <div class="modal-content" style="max-width: 400px;">
+             <header class="modal-header">
+                 <h2>تأكيد الحذف</h2>
+             </header>
+             <div class="modal-body" style="text-align: center;">
+                 <p style="margin-bottom: 20px;">هل أنت متأكد من رغبتك في حذف هذا المحصل؟</p>
+             </div>
+             <footer class="modal-footer">
+                 <button type="button" id="cancelDeleteBtn" class="btn btn-secondary">إلغاء</button>
+                 <button type="button" id="confirmDeleteBtn" class="btn btn-danger">نعم, حذف</button>
+             </footer>
+        </div>
+    </div>
+    
+    <!-- =========== Toast Notification Element =========== -->
+    <div id="toast" class="toast-notification">
+        <p id="toastMessage"></p>
+    </div>
+
+    <!-- =========== Scripts Section =========== -->
+    <!-- No Firebase scripts needed here anymore -->
+
+    <script type="module">
+        // --- استيراد الدوال من ملف خدمة المحصلين الجديد ---
+        import { getCollectors, addCollector, getCollectorById, updateCollector, deleteCollector } from './assets/js/collectors-service.js';
+        import { showToast, sanitizeInput, formatCurrency } from './assets/js/utils.js';
+
+        // --- متغيرات عامة لحفظ حالة الصفحة ---
+        let allCollectors = [];
+        let isEditMode = false;
+        let collectorIdToProcess = null;
+
+        // --- العناصر الرئيسية في الصفحة ---
+        const tableBody = document.getElementById('collectorsTableBody');
+        const searchInput = document.getElementById('searchInput');
+        
+        // --- عناصر النافذة المنبثقة ---
+        const collectorModal = document.getElementById('collectorModal');
+        const deleteModal = document.getElementById('deleteConfirmationModal');
+        const modalTitle = document.getElementById('modalTitle');
+        const collectorForm = document.getElementById('collectorForm');
+        
+        /**
+         * جلب المحصلين من الخادم الخلفي وعرضهم.
+         */
+        async function loadCollectors() {
+            tableBody.innerHTML = `<tr><td colspan="5" style="text-align: center; padding: 2rem;">جاري تحميل البيانات...</td></tr>`;
+            try {
+                const collectors = await getCollectors();
+                allCollectors = collectors;
+                displayCollectors(allCollectors);
+            } catch (error) {
+                 tableBody.innerHTML = `<tr><td colspan="5" style="text-align: center; padding: 2rem; color: red;">فشل تحميل البيانات. تأكد من أن الخادم يعمل.</td></tr>`;
+            }
+        }
+
+        /**
+         * عرض بيانات المحصلين في جدول HTML.
+         */
+        function displayCollectors(collectors) {
+            tableBody.innerHTML = '';
+            if (collectors.length === 0) {
+                tableBody.innerHTML = `<tr><td colspan="5" style="text-align: center; padding: 2rem;">لا يوجد محصلين لعرضهم.</td></tr>`;
+                return;
+            }
+
+            collectors.forEach((collector, index) => {
+                const row = document.createElement('tr');
+                const collectorId = collector._id; // MongoDB uses _id
+                
+                row.innerHTML = `
+                    <td>${index + 1}</td>
+                    <td>${sanitizeInput(collector.collectorCode || '')}</td>
+                    <td title="${sanitizeInput(collector.name)}">${sanitizeInput(collector.name)}</td>
+                    <td>${formatCurrency(collector.openingBalance || 0)}</td>
+                    <td>
+                        <div class="actions-cell">
+                             <button class="btn btn-warning" data-id="${collectorId}" data-action="edit">تعديل</button>
+                             <button class="btn btn-danger" data-id="${collectorId}" data-action="delete">حذف</button>
+                        </div>
+                    </td>
+                `;
+                tableBody.appendChild(row);
+            });
+        }
+        
+        // --- دوال التعامل مع النوافذ المنبثقة ---
+        function openCollectorModal() { collectorModal.classList.add('show'); }
+        function closeCollectorModal() {
+            collectorModal.classList.remove('show');
+            collectorForm.reset();
+            isEditMode = false;
+            modalTitle.textContent = 'إضافة محصل جديد';
+            document.getElementById('collectorId').value = '';
+        }
+        function openDeleteModal(id) {
+            collectorIdToProcess = id;
+            deleteModal.classList.add('show');
+        }
+        function closeDeleteModal() {
+            deleteModal.classList.remove('show');
+            collectorIdToProcess = null;
+        }
+
+        // --- دوال معالجة الإجراءات ---
+        async function handleFormSubmit(event) {
+            event.preventDefault();
+            const saveBtn = document.getElementById('saveBtn');
+            saveBtn.disabled = true;
+
+            const collectorData = {
+                collectorCode: document.getElementById('collectorCode').value,
+                name: document.getElementById('collectorName').value,
+                openingBalance: parseFloat(document.getElementById('openingBalance').value) || 0
+            };
+
+            try {
+                if (isEditMode) {
+                    const collectorId = document.getElementById('collectorId').value;
+                    await updateCollector(collectorId, collectorData);
+                    showToast('تم تحديث البيانات بنجاح', 'success');
+                } else {
+                    await addCollector(collectorData);
+                    showToast('تمت إضافة المحصل بنجاح', 'success');
+                }
+                closeCollectorModal();
+                loadCollectors(); // تحديث الجدول
+            } catch (error) {
+                showToast(error.message || 'حدث خطأ.', 'error');
+            } finally {
+                saveBtn.disabled = false;
+            }
+        }
+
+        async function handleEditClick(id) {
+            const collector = allCollectors.find(c => c._id === id);
+            if (collector) {
+                isEditMode = true;
+                modalTitle.textContent = 'تعديل بيانات المحصل';
+                document.getElementById('collectorId').value = collector._id;
+                document.getElementById('collectorCode').value = collector.collectorCode;
+                document.getElementById('collectorName').value = collector.name;
+                document.getElementById('openingBalance').value = collector.openingBalance;
+                openCollectorModal();
+            } else {
+                showToast('لم يتم العثور على المحصل.', 'error');
+            }
+        }
+        
+        async function confirmDelete() {
+            if (!collectorIdToProcess) return;
+            try {
+                await deleteCollector(collectorIdToProcess);
+                showToast('تم حذف المحصل بنجاح.', 'success');
+                loadCollectors(); // تحديث الجدول
+            } catch (error) {
+                showToast('فشل حذف المحصل.', 'error');
+            } finally {
+                closeDeleteModal();
+            }
+        }
+
+        function performSearch() {
+            const searchTerm = searchInput.value.toLowerCase();
+            const filtered = allCollectors.filter(c => 
+                (c.name || '').toLowerCase().includes(searchTerm) ||
+                (c.collectorCode || '').toLowerCase().includes(searchTerm)
+            );
+            displayCollectors(filtered);
+        }
+
+        // --- إعداد روابط الأحداث ---
+        function setupEventListeners() {
+            document.getElementById('addCollectorBtn').addEventListener('click', () => {
+                isEditMode = false;
+                openCollectorModal();
+            });
+            document.getElementById('closeModalBtn').addEventListener('click', closeCollectorModal);
+            document.getElementById('cancelBtn').addEventListener('click', closeCollectorModal);
+            collectorForm.addEventListener('submit', handleFormSubmit);
+            searchInput.addEventListener('keyup', performSearch);
+            tableBody.addEventListener('click', (event) => {
+                const button = event.target.closest('button[data-action]');
+                if (!button) return;
+                const id = button.dataset.id;
+                if (button.dataset.action === 'edit') handleEditClick(id);
+                if (button.dataset.action === 'delete') openDeleteModal(id);
+            });
+            document.getElementById('cancelDeleteBtn').addEventListener('click', closeDeleteModal);
+            document.getElementById('confirmDeleteBtn').addEventListener('click', confirmDelete);
+        }
+
+        // --- نقطة انطلاق الكود ---
+        document.addEventListener('DOMContentLoaded', () => {
+            loadCollectors();
+            setupEventListeners();
+        });
+    </script>
+</body>
+</html>
+

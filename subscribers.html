@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>إدارة السندات - برنامج إدارة فواتير الكهرباء</title>
+    <link rel="stylesheet" href="assets/css/styles.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <style>
+        .status-active { color: #2ecc71; font-weight: bold; }
+        .status-cancelled { color: #e74c3c; font-weight: bold; }
+        .status-damaged { color: #f39c12; font-weight: bold; }
+        .status-error { color: #e74c3c; font-weight: bold; }
+        
+        .action-bar-container {
+            background-color: #fff; padding: 20px; border-radius: 10px;
+            margin-bottom: 30px; box-shadow: 0 5px 15px rgba(0,0,0,0.05);
+            border: 1px solid #e9ecef;
+        }
+        .action-bar {
+            display: flex; flex-wrap: wrap; gap: 15px; align-items: flex-end;
+        }
+        .action-bar .form-group { margin-bottom: 0; }
+    </style>
+</head>
+<body>
+
+    <div class="page-container">
+        <header class="page-header">
+            <div class="container">
+                <h1>إدارة السندات</h1>
+                <nav class="breadcrumb">
+                    <a href="dashboard.html">لوحة التحكم</a> / <span>إدارة السندات</span>
+                </nav>
+            </div>
+        </header>
+
+        <main class="page-content">
+            <div class="container">
+                
+                <div class="action-bar-container">
+                    <div class="action-bar">
+                        <button id="addReceiptBtn" class="btn btn-primary">إضافة سند يدوي</button>
+                        <button id="importReceiptsBtn" class="btn btn-success">استيراد من Excel</button>
+                        <input type="file" id="excelFileInput" accept=".xlsx,.xls" style="display: none;">
+                        
+                        <div class="form-group">
+                            <label for="dateFilter">التاريخ:</label>
+                            <input type="date" id="dateFilter" class="search-input" style="padding: 8px;">
+                        </div>
+                        <div class="form-group">
+                            <label for="collectorFilter">المحصل:</label>
+                            <input type="text" id="collectorFilter" placeholder="اسم أو كود..." class="search-input">
+                        </div>
+                        <div class="form-group">
+                            <label for="receiptNumberFilter">رقم السند:</label>
+                            <input type="number" id="receiptNumberFilter" placeholder="بحث..." class="search-input">
+                        </div>
+                        <button id="exportExcelBtn" class="btn btn-secondary">تصدير Excel</button>
+                    </div>
+                </div>
+                
+                <div class="table-container">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>رقم السند</th>
+                                <th>المبلغ</th>
+                                <th>اسم المشترك</th>
+                                <th>اسم المحصل</th>
+                                <th>تاريخ التحصيل</th>
+                                <th>الحالة</th>
+                                <th style="text-align: center;">الإجراءات</th>
+                            </tr>
+                        </thead>
+                        <tbody id="receiptsTableBody">
+                             <tr><td colspan="7" style="text-align: center; padding: 2rem;">جاري تحميل البيانات...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </main>
+    </div>
+    
+    <!-- =========== Modals =========== -->
+    <div id="receiptModal" class="modal">
+        <div class="modal-content">
+            <header class="modal-header">
+                <h2 id="modalTitle">إضافة سند يدوي</h2>
+                <button class="close-btn">&times;</button>
+            </header>
+            <form id="receiptForm">
+                <div class="modal-body">
+                    <input type="hidden" id="receiptId">
+                    <div class="form-group"><label for="modalReceiptNumber">رقم السند:</label><input type="number" id="modalReceiptNumber" required></div>
+                    <div class="form-group"><label for="modalAmount">المبلغ:</label><input type="number" id="modalAmount" step="any" required></div>
+                    <div class="form-group"><label for="modalDate">التاريخ:</label><input type="date" id="modalDate" required></div>
+                    <div class="form-group"><label for="modalCollector">المحصل:</label><select id="modalCollector" required><option value="">جاري التحميل...</option></select></div>
+                    <div class="form-group"><label for="modalSubscriber">المشترك:</label><select id="modalSubscriber" required><option value="">جاري التحميل...</option></select></div>
+                    <div class="form-group"><label for="modalStatus">الحالة:</label><select id="modalStatus" required>
+                        <option value="active">نشط</option><option value="cancelled">ملغي</option>
+                        <option value="damaged">تالف</option><option value="error">خطأ</option>
+                    </select></div>
+                </div>
+                <footer class="modal-footer">
+                    <button type="button" class="btn btn-secondary close-btn">إلغاء</button>
+                    <button type="submit" class="btn btn-primary">حفظ</button>
+                </footer>
+            </form>
+        </div>
+    </div>
+
+    <div id="deleteConfirmationModal" class="modal">
+        <div class="modal-content" style="max-width: 400px;">
+             <header class="modal-header"><h2>تأكيد الحذف</h2></header>
+             <div class="modal-body" style="text-align: center;"><p>هل أنت متأكد من حذف هذا السند؟</p></div>
+             <footer class="modal-footer">
+                 <button type="button" id="cancelDeleteBtn" class="btn btn-secondary">إلغاء</button>
+                 <button type="button" id="confirmDeleteBtn" class="btn btn-danger">نعم, حذف</button>
+             </footer>
+        </div>
+    </div>
+    
+    <div id="toast" class="toast-notification"><p id="toastMessage"></p></div>
+
+    <script type="module">
+        import * as receiptService from './assets/js/receipts-service.js';
+        import { getSubscribers } from './assets/js/subscribers-service.js';
+        import { getCollectors } from './assets/js/collectors-service.js';
+        import { importReceiptsFromExcel } from './assets/js/import-excel.js';
+        import { showToast, sanitizeInput, formatCurrency } from './assets/js/utils.js';
+
+        // --- Global State ---
+        let allReceipts = [], filteredReceipts = [], allSubscribers = [], allCollectors = [];
+        let isEditMode = false, receiptIdToProcess = null;
+        let areDropdownsPopulated = false;
+
+        // --- DOM Elements ---
+        const tableBody = document.getElementById('receiptsTableBody');
+        const filters = {
+            date: document.getElementById('dateFilter'),
+            collector: document.getElementById('collectorFilter'),
+            receiptNumber: document.getElementById('receiptNumberFilter')
+        };
+        const receiptModal = document.getElementById('receiptModal');
+        const deleteModal = document.getElementById('deleteConfirmationModal');
+        const receiptForm = document.getElementById('receiptForm');
+        
+        // --- Core Functions (Optimized) ---
+        
+        function formatISODate(iso) { return iso ? iso.split('T')[0] : ''; }
+
+        async function initializePage() {
+            tableBody.innerHTML = `<tr><td colspan="7" style="text-align: center; padding: 2rem;">جاري تحميل السندات...</td></tr>`;
+            try {
+                allReceipts = await receiptService.getReceipts();
+                applyFilters();
+            } catch (error) {
+                 tableBody.innerHTML = `<tr><td colspan="7" style="text-align: center; color: red;">فشل تحميل البيانات. تأكد من أن الخادم يعمل.</td></tr>`;
+            }
+        }
+
+        function displayReceipts(receipts) {
+            tableBody.innerHTML = '';
+            if (receipts.length === 0) {
+                tableBody.innerHTML = `<tr><td colspan="7" style="text-align: center; padding: 2rem;">لا توجد سندات تطابق البحث.</td></tr>`;
+                return;
+            }
+            receipts.forEach(r => {
+                const row = document.createElement('tr');
+                const subName = r.subscriber?.name ? sanitizeInput(r.subscriber.name) : '<span class="status-error">غير مرتبط</span>';
+                const colName = r.collector?.name ? sanitizeInput(r.collector.name) : '<span class="status-error">غير مرتبط</span>';
+                row.innerHTML = `
+                    <td>${r.receiptNumber}</td> <td>${formatCurrency(r.amount||0)}</td>
+                    <td title="${r.subscriber?.name||''}">${subName}</td> <td title="${r.collector?.name||''}">${colName}</td>
+                    <td>${formatISODate(r.date)}</td> <td><span class="status-${r.status}">${r.status}</span></td>
+                    <td><div class="actions-cell">
+                        <button class="btn btn-warning" data-id="${r._id}" data-action="edit">تعديل</button>
+                        <button class="btn btn-danger" data-id="${r._id}" data-action="delete">حذف</button>
+                    </div></td>
+                `;
+                tableBody.appendChild(row);
+            });
+        }
+        
+        function applyFilters() {
+            const dateValue = filters.date.value;
+            const collectorValue = filters.collector.value.toLowerCase();
+            const receiptNumberValue = filters.receiptNumber.value;
+            filteredReceipts = allReceipts.filter(r => {
+                const collectorName = (r.collector?.name || '').toLowerCase();
+                const collectorCode = (r.collector?.collectorCode || '').toLowerCase();
+                const dateMatch = !dateValue || formatISODate(r.date) === dateValue;
+                const collectorMatch = !collectorValue || collectorName.includes(collectorValue) || collectorCode.includes(collectorValue);
+                const receiptNumberMatch = !receiptNumberValue || r.receiptNumber.toString().includes(receiptNumberValue);
+                return dateMatch && collectorMatch && receiptNumberMatch;
+            });
+            displayReceipts(filteredReceipts);
+        }
+
+        async function prepareAndOpenModal(receipt = null) {
+            const actionButton = receipt ? document.querySelector(`button[data-id="${receipt._id}"][data-action="edit"]`) : document.getElementById('addReceiptBtn');
+            actionButton.disabled = true;
+            showToast('جاري تجهيز النافذة...', 'success');
+
+            if (!areDropdownsPopulated) {
+                try {
+                    [allSubscribers, allCollectors] = await Promise.all([getSubscribers(), getCollectors()]);
+                    populateDropdowns();
+                    areDropdownsPopulated = true;
+                } catch (error) {
+                    showToast('فشل تحميل بيانات المشتركين/المحصلين.', 'error');
+                    actionButton.disabled = false;
+                    return;
+                }
+            }
+            
+            receiptForm.reset();
+            isEditMode = !!receipt;
+            document.getElementById('modalTitle').textContent = isEditMode ? 'تعديل سند' : 'إضافة سند يدوي';
+            if (isEditMode) {
+                document.getElementById('receiptId').value = receipt._id;
+                document.getElementById('modalReceiptNumber').value = receipt.receiptNumber;
+                document.getElementById('modalAmount').value = receipt.amount;
+                document.getElementById('modalDate').value = formatISODate(receipt.date);
+                document.getElementById('modalCollector').value = receipt.collector?._id || '';
+                document.getElementById('modalSubscriber').value = receipt.subscriber?._id || '';
+                document.getElementById('modalStatus').value = receipt.status;
+            }
+            actionButton.disabled = false;
+            receiptModal.classList.add('show');
+        }
+
+        function populateDropdowns() {
+            const collectorSelect = document.getElementById('modalCollector');
+            const subscriberSelect = document.getElementById('modalSubscriber');
+            collectorSelect.innerHTML = '<option value="">اختر محصل...</option>';
+            subscriberSelect.innerHTML = '<option value="">اختر مشترك...</option>';
+            allCollectors.forEach(c => collectorSelect.innerHTML += `<option value="${c._id}">${c.name} (${c.collectorCode})</option>`);
+            allSubscribers.forEach(s => subscriberSelect.innerHTML += `<option value="${s._id}">${s.name}</option>`);
+        }
+
+        function closeReceiptModal() { receiptModal.classList.remove('show'); }
+        function openDeleteModal(id) { receiptIdToProcess = id; deleteModal.classList.add('show'); }
+        function closeDeleteModal() { deleteModal.classList.remove('show'); receiptIdToProcess = null; }
+
+        async function handleFormSubmit(event) {
+            event.preventDefault();
+            const saveBtn = event.target.querySelector('button[type="submit"]');
+            saveBtn.disabled = true;
+            const receiptId = document.getElementById('receiptId').value;
+            const data = {
+                receiptNumber: document.getElementById('modalReceiptNumber').value,
+                amount: document.getElementById('modalAmount').value,
+                date: document.getElementById('modalDate').value,
+                collector: document.getElementById('modalCollector').value,
+                subscriber: document.getElementById('modalSubscriber').value,
+                status: document.getElementById('modalStatus').value
+            };
+            try {
+                if (isEditMode) {
+                    await receiptService.updateReceipt(receiptId, data);
+                    showToast('تم تحديث السند بنجاح', 'success');
+                } else {
+                    await receiptService.addReceipt(data);
+                    showToast('تمت إضافة السند بنجاح', 'success');
+                }
+                closeReceiptModal();
+                initializePage();
+            } catch (error) {
+                showToast(error.message || 'حدث خطأ.', 'error');
+            } finally {
+                saveBtn.disabled = false;
+            }
+        }
+
+        async function confirmDelete() {
+            if (!receiptIdToProcess) return;
+            try {
+                await receiptService.deleteReceipt(receiptIdToProcess);
+                showToast('تم حذف السند بنجاح.', 'success');
+                initializePage();
+            } catch (error) {
+                showToast('فشل حذف السند.', 'error');
+            } finally {
+                closeDeleteModal();
+            }
+        }
+
+        function handleExportClick() {
+            if (filteredReceipts.length === 0) return showToast('لا توجد بيانات لتصديرها.', 'warning');
+            const dataToExport = filteredReceipts.map(r => ({
+                'رقم السند': r.receiptNumber, 'المبلغ': r.amount,
+                'اسم المشترك': r.subscriber?.name || '', 'اسم المحصل': r.collector?.name || '',
+                'كود المحصل': r.collector?.collectorCode || '', 'تاريخ التحصيل': formatISODate(r.date), 'الحالة': r.status
+            }));
+            const ws = XLSX.utils.json_to_sheet(dataToExport);
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, "السندات");
+            XLSX.writeFile(wb, "Receipts_Export.xlsx");
+        }
+
+        async function handleExcelImport(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            const importBtn = document.getElementById('importReceiptsBtn');
+            importBtn.disabled = true;
+            importBtn.textContent = 'جاري المعالجة...';
+            try {
+                const result = await importReceiptsFromExcel(file);
+                if (result.success) {
+                    const serverResponse = await receiptService.batchAddReceipts(result.data);
+                    showToast(serverResponse.message, 'success');
+                    if (serverResponse.errors?.length > 0) {
+                        alert(`حدثت أخطاء:\n${serverResponse.errors.join('\n')}`);
+                    }
+                    initializePage();
+                } else {
+                    showToast(result.error, 'error');
+                }
+            } catch (error) {
+                showToast(error.message || 'فشل استيراد الملف.', 'error');
+            } finally {
+                importBtn.disabled = false;
+                importBtn.textContent = 'استيراد من Excel';
+                event.target.value = '';
+            }
+        }
+        
+        function setupEventListeners() {
+            Object.values(filters).forEach(el => el.addEventListener('input', applyFilters));
+            document.getElementById('addReceiptBtn').addEventListener('click', () => prepareAndOpenModal());
+            document.getElementById('importReceiptsBtn').addEventListener('click', () => document.getElementById('excelFileInput').click());
+            document.getElementById('excelFileInput').addEventListener('change', handleExcelImport);
+            document.getElementById('exportExcelBtn').addEventListener('click', handleExportClick);
+            receiptModal.querySelectorAll('.close-btn').forEach(btn => btn.addEventListener('click', closeReceiptModal));
+            receiptForm.addEventListener('submit', handleFormSubmit);
+            tableBody.addEventListener('click', (event) => {
+                const button = event.target.closest('button[data-action]');
+                if (!button) return;
+                const id = button.dataset.id;
+                if (button.dataset.action === 'edit') prepareAndOpenModal(allReceipts.find(r => r._id === id));
+                if (button.dataset.action === 'delete') openDeleteModal(id);
+            });
+            document.getElementById('cancelDeleteBtn').addEventListener('click', closeDeleteModal);
+            document.getElementById('confirmDeleteBtn').addEventListener('click', confirmDelete);
+        }
+
+        document.addEventListener('DOMContentLoaded', initializePage);
+    </script>
+</body>
+</html>
+
