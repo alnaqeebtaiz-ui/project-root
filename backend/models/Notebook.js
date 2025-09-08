@@ -7,7 +7,7 @@ const MissingReceiptSchema = new mongoose.Schema({
     },
     status: {
         type: String,
-        enum: ['مفقود', 'ملغي', 'تالف', 'خطأ إدخال'], // الحالات الممكنة
+        enum: ['مفقود', 'ملغي', 'تالف', 'خطأ إدخال'],
         default: 'مفقود'
     },
     notes: {
@@ -19,17 +19,17 @@ const MissingReceiptSchema = new mongoose.Schema({
 const NotebookSchema = new mongoose.Schema({
     collectorId: {
         type: mongoose.Schema.Types.ObjectId,
-        ref: 'collector', // يربط الدفتر بالمحصل
+        ref: 'collector',
         default: null
     },
-    collectorName: { // لتسهيل العرض
+    collectorName: {
         type: String,
         default: 'غير محدد'
     },
     startNumber: {
         type: Number,
         required: true,
-        unique: true // كل دفتر يبدأ برقم فريد
+        unique: true
     },
     endNumber: {
         type: Number,
@@ -40,9 +40,24 @@ const NotebookSchema = new mongoose.Schema({
         enum: ['قيد الاستخدام', 'مكتمل', 'مرجع'],
         default: 'قيد الاستخدام'
     },
-    missingReceipts: [MissingReceiptSchema] // مصفوفة لتخزين السندات المفقودة
+    missingReceipts: [MissingReceiptSchema],
+    pendingReceipts: [{
+        type: Number
+    }],
+
+    // --- إضافة جديدة: لتحديد النطاق الفعلي المستخدم داخل الدفتر ---
+    minUsedInNotebook: {
+        type: Number,
+        default: null
+    },
+    maxUsedInNotebook: {
+        type: Number,
+        default: null
+    }
+
 }, {
-    timestamps: true // لإضافة تاريخ الإنشاء والتحديث تلقائيًا
+    timestamps: true
 });
 
 module.exports = mongoose.model('notebook', NotebookSchema);
+
