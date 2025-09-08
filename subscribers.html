@@ -4,15 +4,27 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>إدارة المشتركين - برنامج إدارة فواتير الكهرباء</title>
-    <!-- Your Custom Stylesheet -->
     <link rel="stylesheet" href="assets/css/styles.css">
-    <!-- SheetJS Library for reading Excel files -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <style>
+        .pagination-controls {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin-top: 20px;
+            gap: 15px;
+        }
+        .pagination-controls button {
+            cursor: pointer;
+        }
+        #pageInfo {
+            font-weight: bold;
+        }
+    </style>
 </head>
 <body>
 
     <div class="page-container">
-        <!-- =========== Page Header =========== -->
         <header class="page-header">
             <div class="container">
                 <h1>إدارة المشتركين</h1>
@@ -22,13 +34,13 @@
             </div>
         </header>
 
-        <!-- =========== Main Page Content =========== -->
         <main class="page-content">
             <div class="container">
                 
                 <div class="action-bar">
                     <button id="addSubscriberBtn" class="btn btn-primary">إضافة مشترك جديد</button>
                     <button id="importExcelBtn" class="btn btn-success">استيراد من Excel</button>
+                    <button id="exportSubscribersBtn" class="btn btn-secondary">تصدير كشف</button>
                     <input type="file" id="excelFileInput" accept=".xlsx,.xls" style="display: none;">
                     
                     <div class="search-bar" style="margin-right: auto;">
@@ -44,21 +56,24 @@
                                 <th>اسم المشترك</th>
                                 <th>العنوان</th>
                                 <th>رقم الهاتف</th>
-                                <th>تاريخ التسجيل</th>
                                 <th style="text-align: center;">الإجراءات</th>
                             </tr>
                         </thead>
                         <tbody id="subscribersTableBody">
-                             <tr><td colspan="6" style="text-align: center; padding: 2rem;">جاري تحميل البيانات...</td></tr>
-                        </tbody>
+                            </tbody>
                     </table>
+                </div>
+
+                <div class="pagination-controls" id="paginationControls" style="display: none;">
+                    <button id="nextPageBtn" class="btn btn-default">&laquo; التالي</button>
+                    <span id="pageInfo"></span>
+                    <button id="prevPageBtn" class="btn btn-default">السابق &raquo;</button>
                 </div>
 
             </div>
         </main>
     </div>
     
-    <!-- =========== Add/Edit Subscriber Modal =========== -->
     <div id="subscriberModal" class="modal">
         <div class="modal-content">
             <header class="modal-header">
@@ -88,15 +103,13 @@
             </form>
         </div>
     </div>
-    
-    <!-- =========== Delete Confirmation Modal =========== -->
     <div id="deleteConfirmationModal" class="modal">
         <div class="modal-content" style="max-width: 400px;">
              <header class="modal-header">
                  <h2>تأكيد الحذف</h2>
              </header>
              <div class="modal-body" style="text-align: center;">
-                 <p style="margin-bottom: 20px;">هل أنت متأكد من رغبتك في حذف هذا المشترك؟ لا يمكن التراجع عن هذا الإجراء.</p>
+                 <p style="margin-bottom: 20px;">هل أنت متأكد من رغبتك في حذف هذا المشترك؟</p>
              </div>
              <footer class="modal-footer">
                  <button type="button" id="cancelDeleteBtn" class="btn btn-secondary">إلغاء</button>
@@ -104,22 +117,19 @@
              </footer>
         </div>
     </div>
-    
-    <!-- =========== Toast Notification Element =========== -->
-    <div id="toast" class="toast-notification">
-        <p id="toastMessage"></p>
-    </div>
+    <div id="toast" class="toast-notification"><p id="toastMessage"></p></div>
 
-    <!-- =========== Scripts Section =========== -->
     <script type="module">
-        import { getSubscribers, addSubscriber, getSubscriberById, updateSubscriber, deleteSubscriber, batchAddSubscribers } from './assets/js/subscribers-service.js';
+        import { getSubscriberById, addSubscriber, updateSubscriber, deleteSubscriber, batchAddSubscribers } from './assets/js/subscribers-service.js';
         import { importSubscribersFromExcel } from './assets/js/import-excel.js';
         import { showToast, sanitizeInput } from './assets/js/utils.js';
 
-        // --- Global State ---
-        let allSubscribers = [];
-        let isEditMode = false;
-        let subscriberIdToProcess = null;
+        // --- Global State for Pagination and Search ---
+        let currentPage = 1;
+        let totalPages = 1;
+        let currentSearchTerm = '';
+        let searchTimeout;
+        const PAGE_LIMIT = 50; // عدد المشتركين في كل صفحة
 
         // --- DOM Elements ---
         const tableBody = document.getElementById('subscribersTableBody');
@@ -128,74 +138,92 @@
         const deleteModal = document.getElementById('deleteConfirmationModal');
         const modalTitle = document.getElementById('modalTitle');
         const subscriberForm = document.getElementById('subscriberForm');
+        // New elements
+        const paginationControls = document.getElementById('paginationControls');
+        const pageInfo = document.getElementById('pageInfo');
+        const prevPageBtn = document.getElementById('prevPageBtn');
+        const nextPageBtn = document.getElementById('nextPageBtn');
 
-        function formatISODate(isoDateString) {
-            if (!isoDateString) return '';
-            try { return isoDateString.split('T')[0]; } catch (e) { return ''; }
-        }
+        // --- Main Data Loading Function (Rewritten for Pagination) ---
+        async function loadSubscribers(page = 1, search = '') {
+            tableBody.innerHTML = `<tr><td colspan="5" style="text-align: center; padding: 2rem;">جاري تحميل البيانات...</td></tr>`;
+            paginationControls.style.display = 'none';
+            currentSearchTerm = search;
+            currentPage = page;
 
-        async function loadSubscribers() {
-            tableBody.innerHTML = `<tr><td colspan="6" style="text-align: center; padding: 2rem;">جاري تحميل البيانات...</td></tr>`;
             try {
-                const subscribers = await getSubscribers();
-                allSubscribers = subscribers;
-                displaySubscribers(allSubscribers);
+                // Fetch paged data from the server
+                // السطر الصحيح
+                const response = await fetch(`http://localhost:3000/api/subscribers?page=${page}&limit=${PAGE_LIMIT}&search=${search}`);
+                if (!response.ok) throw new Error('فشل في جلب البيانات من الخادم');
+                
+                const data = await response.json();
+                
+                displaySubscribers(data.subscribers);
+                updatePaginationControls(data);
+
             } catch (error) {
-                 tableBody.innerHTML = `<tr><td colspan="6" style="text-align: center; padding: 2rem; color: red;">فشل تحميل البيانات. تأكد من أن الخادم يعمل.</td></tr>`;
+                tableBody.innerHTML = `<tr><td colspan="5" style="text-align: center; padding: 2rem; color: red;">${error.message}</td></tr>`;
             }
         }
 
         function displaySubscribers(subscribers) {
             tableBody.innerHTML = '';
             if (subscribers.length === 0) {
-                tableBody.innerHTML = `<tr><td colspan="6" style="text-align: center; padding: 2rem;">لا يوجد مشتركين.</td></tr>`;
+                tableBody.innerHTML = `<tr><td colspan="5" style="text-align: center; padding: 2rem;">لا يوجد مشتركين يطابقون البحث.</td></tr>`;
                 return;
             }
             subscribers.forEach((subscriber, index) => {
                 const row = document.createElement('tr');
-                const subscriberId = subscriber._id;
+                const rowNumber = (currentPage - 1) * PAGE_LIMIT + index + 1;
                 const safeName = sanitizeInput(subscriber.name);
                 row.innerHTML = `
-                    <td>${index + 1}</td>
+                    <td>${rowNumber}</td>
                     <td title="${safeName}">${safeName}</td>
                     <td title="${sanitizeInput(subscriber.address || '')}">${sanitizeInput(subscriber.address || '')}</td>
                     <td>${sanitizeInput(subscriber.phone || '')}</td>
-                    <td>${formatISODate(subscriber.registrationDate)}</td>
                     <td>
                         <div class="actions-cell">
-                             <button class="btn btn-warning" data-id="${subscriberId}" data-action="edit">تعديل</button>
-                             <button class="btn btn-danger" data-id="${subscriberId}" data-action="delete">حذف</button>
+                             <button class="btn btn-warning" data-id="${subscriber._id}" data-action="edit">تعديل</button>
+                             <button class="btn btn-danger" data-id="${subscriber._id}" data-action="delete">حذف</button>
                         </div>
                     </td>
                 `;
                 tableBody.appendChild(row);
             });
         }
+
+        function updatePaginationControls({ currentPage, totalPages, totalSubscribers }) {
+            if (totalPages > 0) {
+                pageInfo.textContent = `الصفحة ${currentPage} من ${totalPages} (إجمالي ${totalSubscribers} مشترك)`;
+                prevPageBtn.disabled = currentPage <= 1;
+                nextPageBtn.disabled = currentPage >= totalPages;
+                paginationControls.style.display = 'flex';
+            } else {
+                paginationControls.style.display = 'none';
+            }
+        }
         
-        // --- Modal Handling ---
+        // --- Modal and Form Handlers (with minor updates) ---
         function openSubscriberModal() { subscriberModal.classList.add('show'); }
         function closeSubscriberModal() {
             subscriberModal.classList.remove('show');
             subscriberForm.reset();
-            isEditMode = false;
             modalTitle.textContent = 'إضافة مشترك جديد';
             document.getElementById('subscriberId').value = '';
         }
         function openDeleteModal(id) {
-            subscriberIdToProcess = id;
+            document.getElementById('confirmDeleteBtn').dataset.id = id;
             deleteModal.classList.add('show');
         }
-        function closeDeleteModal() {
-            deleteModal.classList.remove('show');
-            subscriberIdToProcess = null;
-        }
+        function closeDeleteModal() { deleteModal.classList.remove('show'); }
 
-        // --- Form & Action Handlers ---
         async function handleFormSubmit(event) {
             event.preventDefault();
             const saveBtn = document.getElementById('saveBtn');
             saveBtn.disabled = true;
 
+            const isEditMode = !!document.getElementById('subscriberId').value;
             const subscriberData = {
                 name: document.getElementById('subscriberName').value,
                 address: document.getElementById('subscriberAddress').value,
@@ -204,15 +232,15 @@
 
             try {
                 if (isEditMode) {
-                    const subscriberId = document.getElementById('subscriberId').value;
-                    await updateSubscriber(subscriberId, subscriberData);
+                    const id = document.getElementById('subscriberId').value;
+                    await updateSubscriber(id, subscriberData);
                     showToast('تم تحديث البيانات بنجاح', 'success');
                 } else {
                     await addSubscriber(subscriberData);
                     showToast('تمت إضافة المشترك بنجاح', 'success');
                 }
                 closeSubscriberModal();
-                loadSubscribers();
+                loadSubscribers(currentPage, currentSearchTerm); // Reload current page
             } catch (error) {
                 showToast(error.message || 'حدث خطأ.', 'error');
             } finally {
@@ -221,26 +249,29 @@
         }
 
         async function handleEditClick(id) {
-            const subscriber = allSubscribers.find(s => s._id === id);
-            if (subscriber) {
-                isEditMode = true;
-                modalTitle.textContent = 'تعديل بيانات المشترك';
-                document.getElementById('subscriberId').value = subscriber._id;
-                document.getElementById('subscriberName').value = subscriber.name;
-                document.getElementById('subscriberAddress').value = subscriber.address;
-                document.getElementById('subscriberPhone').value = subscriber.phone;
-                openSubscriberModal();
-            } else {
+            try {
+                // Fetch the specific subscriber's data instead of relying on a global list
+                const subscriber = await getSubscriberById(id);
+                if (subscriber) {
+                    modalTitle.textContent = 'تعديل بيانات المشترك';
+                    document.getElementById('subscriberId').value = subscriber._id;
+                    document.getElementById('subscriberName').value = subscriber.name;
+                    document.getElementById('subscriberAddress').value = subscriber.address;
+                    document.getElementById('subscriberPhone').value = subscriber.phone;
+                    openSubscriberModal();
+                }
+            } catch (error) {
                 showToast('لم يتم العثور على المشترك.', 'error');
             }
         }
         
         async function confirmDelete() {
-            if (!subscriberIdToProcess) return;
+            const id = document.getElementById('confirmDeleteBtn').dataset.id;
+            if (!id) return;
             try {
-                await deleteSubscriber(subscriberIdToProcess);
+                await deleteSubscriber(id);
                 showToast('تم حذف المشترك بنجاح.', 'success');
-                loadSubscribers(); // Refresh the list
+                loadSubscribers(1, currentSearchTerm); // Reload from page 1 after delete
             } catch (error) {
                 showToast('فشل حذف المشترك.', 'error');
             } finally {
@@ -248,16 +279,6 @@
             }
         }
 
-        function performSearch() {
-            const searchTerm = searchInput.value.toLowerCase();
-            const filtered = allSubscribers.filter(s => 
-                (s.name || '').toLowerCase().includes(searchTerm) ||
-                (s.address || '').toLowerCase().includes(searchTerm) ||
-                (s.phone || '').toLowerCase().includes(searchTerm)
-            );
-            displaySubscribers(filtered);
-        }
-        
         async function handleExcelImport(event) {
             const file = event.target.files[0];
             if (!file) return;
@@ -270,36 +291,90 @@
                 const result = await importSubscribersFromExcel(file);
 
                 if (result.success) {
-                    await batchAddSubscribers(result.data);
-                    showToast(`تم استيراد ${result.data.length} مشترك بنجاح!`, 'success');
-                    loadSubscribers();
+                    // --- التعديل هنا ---
+                    // 1. التقط الاستجابة القادمة من الخادم
+                    const serverResponse = await batchAddSubscribers(result.data);
+                    
+                    // 2. استخدم الرسالة من الخادم مباشرة
+                    showToast(serverResponse.message, 'success'); 
+                    
+                    loadSubscribers(1, ''); // أعد تحميل البيانات من الصفحة الأولى
+                    // --- نهاية التعديل ---
                 } else {
                     showToast(result.error, 'error');
                 }
             } catch (error) {
                 console.error("Import failed:", error);
-                showToast('فشل استيراد الملف.', 'error');
+                showToast(error.message || 'فشل استيراد الملف.', 'error');
             } finally {
                 importBtn.disabled = false;
                 importBtn.textContent = 'استيراد من Excel';
-                event.target.value = '';
+                event.target.value = ''; // Clear the file input
             }
         }
 
-        // --- Event Listener Setup ---
+        // --- ADDED: Export Functionality ---
+        async function handleExportSubscribers() {
+            const btn = document.getElementById('exportSubscribersBtn');
+            btn.disabled = true;
+            btn.textContent = 'جاري التجهيز...';
+            try {
+                // Fetch ALL subscribers matching the current search term
+                // السطر الصحيح
+                const response = await fetch(`http://localhost:3000/api/subscribers?search=${currentSearchTerm}&limit=0`);
+                if (!response.ok) throw new Error('فشل تحميل بيانات التصدير');
+                const data = await response.json();
+                const subscribersToExport = data.subscribers;
+
+                if (subscribersToExport.length === 0) {
+                    showToast('لا يوجد مشتركين لتصديرهم.', 'warning');
+                    return;
+                }
+                
+                // Map data to desired format
+                const formattedData = subscribersToExport.map(s => ({
+                    'اسم المشترك': s.name,
+                    'العنوان': s.address,
+                    'رقم الهاتف': s.phone
+                }));
+
+                const ws = XLSX.utils.json_to_sheet(formattedData);
+                const wb = XLSX.utils.book_new();
+                XLSX.utils.book_append_sheet(wb, ws, "المشتركين");
+                XLSX.writeFile(wb, "Subscribers_Export.xlsx");
+                showToast('تم تصدير الكشف بنجاح', 'success');
+
+            } catch(error) {
+                showToast(error.message, 'error');
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'تصدير كشف';
+            }
+        }
+
+        // --- Event Listener Setup (Rewritten) ---
         function setupEventListeners() {
             document.getElementById('addSubscriberBtn').addEventListener('click', () => {
-                isEditMode = false;
+                subscriberForm.reset();
+                modalTitle.textContent = 'إضافة مشترك جديد';
+                document.getElementById('subscriberId').value = '';
                 openSubscriberModal();
             });
-            document.getElementById('importExcelBtn').addEventListener('click', () => {
-                document.getElementById('excelFileInput').click();
-            });
+            document.getElementById('importExcelBtn').addEventListener('click', () => document.getElementById('excelFileInput').click());
             document.getElementById('excelFileInput').addEventListener('change', handleExcelImport);
+            document.getElementById('exportSubscribersBtn').addEventListener('click', handleExportSubscribers);
+
             document.getElementById('closeModalBtn').addEventListener('click', closeSubscriberModal);
             document.getElementById('cancelBtn').addEventListener('click', closeSubscriberModal);
             subscriberForm.addEventListener('submit', handleFormSubmit);
-            searchInput.addEventListener('keyup', performSearch);
+
+            searchInput.addEventListener('keyup', () => {
+                clearTimeout(searchTimeout);
+                searchTimeout = setTimeout(() => {
+                    loadSubscribers(1, searchInput.value);
+                }, 300); // Debounce search
+            });
+
             tableBody.addEventListener('click', (event) => {
                 const button = event.target.closest('button[data-action]');
                 if (!button) return;
@@ -307,16 +382,19 @@
                 if (button.dataset.action === 'edit') handleEditClick(id);
                 if (button.dataset.action === 'delete') openDeleteModal(id);
             });
+
             document.getElementById('cancelDeleteBtn').addEventListener('click', closeDeleteModal);
             document.getElementById('confirmDeleteBtn').addEventListener('click', confirmDelete);
+
+            prevPageBtn.addEventListener('click', () => loadSubscribers(currentPage - 1, currentSearchTerm));
+            nextPageBtn.addEventListener('click', () => loadSubscribers(currentPage + 1, currentSearchTerm));
         }
 
         // --- Entry Point ---
         document.addEventListener('DOMContentLoaded', () => {
-            loadSubscribers();
+            loadSubscribers(); // Load initial page
             setupEventListeners();
         });
     </script>
 </body>
 </html>
-

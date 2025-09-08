@@ -34,7 +34,6 @@ function parseExcelFile(file) {
  * @returns {Promise<{success: boolean, data?: Array<Object>, error?: string}>}
  */
 export async function importSubscribersFromExcel(file) {
-    // ... الكود الحالي يبقى كما هو ...
     try {
         const rows = await parseExcelFile(file);
         
@@ -46,18 +45,13 @@ export async function importSubscribersFromExcel(file) {
             const name = row['اسم المشترك'] || row['Name'];
             const address = row['العنوان'] || row['Address'];
             const phone = row['رقم الهاتف'] || row['Phone'];
-            const regDate = row['تاريخ التسجيل'] || row['Registration Date'];
-
-            let registrationDate = null;
-            if (regDate instanceof Date && !isNaN(regDate)) {
-                registrationDate = regDate;
-            }
+            // --- تم حذف الأسطر الخاصة بـ registrationDate من هنا ---
 
             return {
                 name: String(name || '').trim(),
                 address: String(address || '').trim(),
-                phone: String(phone || '').trim(),
-                registrationDate: registrationDate 
+                phone: String(phone || '').trim()
+                // --- وتم حذفه من الكائن المعاد أيضًا ---
             };
         })
         .filter(subscriber => subscriber.name !== '');
@@ -77,9 +71,8 @@ export async function importSubscribersFromExcel(file) {
 
 /**
  * يعالج بيانات كشف التحصيل اليومي المستوردة من Excel.
- * @param {File} file - ملف Excel لكشف التحصيل.
- * @returns {Promise<{success: boolean, data?: Array<Object>, error?: string}>}
- */
+ * * !!!--- هذه الدالة لم يتم لمسها أو تغييرها بناءً على طلبك ---!!!
+ * */
 export async function importReceiptsFromExcel(file) {
     try {
         const rows = await parseExcelFile(file);
@@ -132,4 +125,3 @@ export async function importReceiptsFromExcel(file) {
         return { success: false, error: "حدث خطأ أثناء قراءة ملف كشف التحصيل." };
     }
 }
-
