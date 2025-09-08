@@ -9,6 +9,7 @@ const subscribersRouter = require('./routes/subscribers');
 const collectorsRouter = require('./routes/collectors');
 const receiptsRouter = require('./routes/receipts');
 const depositsRouter = require('./routes/deposits'); // --- إضافة جديدة: استيراد مسارات التوريد
+const notebooks = require('./routes/notebooks');
 
 // إنشاء تطبيق Express
 const app = express();
@@ -27,6 +28,8 @@ app.use('/api/subscribers', subscribersRouter);
 app.use('/api/collectors', collectorsRouter);
 app.use('/api/receipts', receiptsRouter);
 app.use('/api/deposits', depositsRouter); // --- إضافة جديدة: استخدام مسارات التوريد
+app.use('/api/notebooks', notebooks); // <-- وأضف هذا السطر
+
 
 
 // --- الاتصال بقاعدة البيانات ---
