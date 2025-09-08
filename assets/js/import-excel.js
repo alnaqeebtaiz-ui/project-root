@@ -75,7 +75,6 @@ export async function importSubscribersFromExcel(file) {
 }
 
 
-// --- الإضافة الجديدة والمهمة تبدأ هنا ---
 /**
  * يعالج بيانات كشف التحصيل اليومي المستوردة من Excel.
  * @param {File} file - ملف Excel لكشف التحصيل.
@@ -95,14 +94,22 @@ export async function importReceiptsFromExcel(file) {
             const amount = row['مبلغ التحصيل'] || row['المبلغ'];
             const collectorCode = row['رقم المحصل'] || row['كود المحصل'];
             const subscriberName = row['اسم المشترك'];
-            const date = row['التاريخ'];
+            const dateFromExcel = row['التاريخ']; // التاريخ الأصلي من الإكسل
+
+            // !! --- هذا هو التعديل المطلوب --- !!
+            let correctedDate = null;
+            if (dateFromExcel instanceof Date && !isNaN(dateFromExcel)) {
+                // تصحيح التاريخ لتعويض فارق التوقيت المحلي وجعله بتوقيت UTC
+                correctedDate = new Date(dateFromExcel.getTime() - (dateFromExcel.getTimezoneOffset() * 60000));
+            }
+            // !! --- نهاية التعديل --- !!
 
             return {
                 receiptNumber: parseInt(receiptNumber, 10),
                 amount: parseFloat(amount),
                 collectorCode: String(collectorCode || '').trim(),
                 subscriberName: String(subscriberName || '').trim(),
-                date: (date instanceof Date && !isNaN(date)) ? date : null,
+                date: correctedDate, // نستخدم هنا التاريخ المصحح
             };
         })
         // فلترة الصفوف التي لا تحتوي على البيانات الأساسية
@@ -111,7 +118,7 @@ export async function importReceiptsFromExcel(file) {
             receipt.amount && 
             receipt.collectorCode && 
             receipt.subscriberName &&
-            receipt.date
+            receipt.date // التأكد من وجود التاريخ المصحح
         );
 
         if (receipts.length === 0) {
