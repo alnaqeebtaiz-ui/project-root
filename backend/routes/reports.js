@@ -4,6 +4,7 @@ const Receipt = require('../models/Receipt');
 const Deposit = require('../models/Deposit');
 const Collector = require('../models/Collector'); // <-- تم استيراد مودل المحصل
 const mongoose = require('mongoose');
+const Notebook = require('../models/Notebook');
 
 router.post('/generate', async (req, res) => {
     const { reportType, filters } = req.body;
@@ -16,8 +17,14 @@ router.post('/generate', async (req, res) => {
             case 'periodic-summary-table':
                 reportData = await generatePeriodicSummaryReport(filters);
                 break;
+
+            case 'annual-summary':
+                reportData = await generateAnnualReport(filters);
+                break;
             default:
                 return res.status(400).json({ msg: 'نوع التقرير غير معروف' });
+
+            
         }
         res.json(reportData);
     } catch (error) {
@@ -200,6 +207,94 @@ async function generateDetailedPeriodicReport(filters) {
         }
     }
     return reportRows.sort((a, b) => new Date(a.date) - new Date(b.date) || a.fromReceipt - b.fromReceipt);
+}
+
+
+async function generateAnnualReport(filters) {
+    const { year, collectorId } = filters;
+    if (!year) {
+        throw new Error("يجب تحديد السنة");
+    }
+
+    const startDate = new Date(Date.UTC(year, 0, 1));
+    const endDate = new Date(Date.UTC(year, 11, 31, 23, 59, 59, 999));
+
+    // --- 1. تجميع بيانات التحصيل (Receipts) ---
+    const receiptMatch = { date: { $gte: startDate, $lte: endDate } };
+    if (collectorId) {
+        receiptMatch.collector = new mongoose.Types.ObjectId(collectorId);
+    }
+    const receiptData = await Receipt.aggregate([
+        { $match: receiptMatch },
+        { $group: {
+            _id: { $month: "$date" },
+            totalCollection: { $sum: "$amount" },
+            receiptCount: { $sum: 1 }
+        }}
+    ]);
+
+    // --- 2. تجميع بيانات التوريد (Deposits) ---
+    const depositMatch = { depositDate: { $gte: startDate, $lte: endDate } };
+    if (collectorId) {
+        depositMatch.collector = new mongoose.Types.ObjectId(collectorId);
+    }
+    const depositData = await Deposit.aggregate([
+        { $match: depositMatch },
+        { $group: {
+            _id: { $month: "$depositDate" },
+            totalDeposit: { $sum: "$amount" }
+        }}
+    ]);
+
+    // --- 3. تجميع السندات المفقودة شهريًا (التعديل الرئيسي هنا) ---
+    const notebookMatch = { 
+        "missingReceipts.estimatedDate": { $gte: startDate, $lte: endDate }
+    };
+    if (collectorId) {
+        notebookMatch.collectorId = new mongoose.Types.ObjectId(collectorId);
+    }
+    const missingData = await Notebook.aggregate([
+        { $match: notebookMatch },
+        { $unwind: "$missingReceipts" }, // فرد مصفوفة السندات المفقودة
+        { $match: { "missingReceipts.estimatedDate": { $gte: startDate, $lte: endDate } } },
+        { $group: {
+            _id: { $month: "$missingReceipts.estimatedDate" }, // تجميع حسب شهر التاريخ التقديري
+            missingCount: { $sum: 1 }
+        }}
+    ]);
+    
+    // --- 4. دمج كل البيانات في جدول شهري ---
+    const receiptMap = new Map(receiptData.map(item => [item._id, item]));
+    const depositMap = new Map(depositData.map(item => [item._id, item]));
+    const missingMap = new Map(missingData.map(item => [item._id, item])); // خريطة للمفقودات
+
+    const reportRows = [];
+    const monthNames = ["يناير", "فبراير", "مارس", "أبريل", "مايو", "يونيو", "يوليو", "أغسطس", "سبتمبر", "أكتوبر", "نوفمبر", "ديسمبر"];
+    
+    for (let i = 1; i <= 12; i++) {
+        const rData = receiptMap.get(i) || { totalCollection: 0, receiptCount: 0 };
+        const dData = depositMap.get(i) || { totalDeposit: 0 };
+        const mData = missingMap.get(i) || { missingCount: 0 }; // جلب عدد المفقودات للشهر
+        reportRows.push({
+            month: monthNames[i-1],
+            totalCollection: rData.totalCollection,
+            totalDeposit: dData.totalDeposit,
+            netAmount: rData.totalCollection - dData.totalDeposit,
+            receiptCount: rData.receiptCount,
+            missingCount: mData.missingCount // إضافة عدد المفقودات للبيانات الشهرية
+        });
+    }
+
+    // --- 5. حساب الإجمالي النهائي ---
+    const totals = {
+        totalCollection: reportRows.reduce((sum, row) => sum + row.totalCollection, 0),
+        totalDeposit: reportRows.reduce((sum, row) => sum + row.totalDeposit, 0),
+        netAmount: reportRows.reduce((sum, row) => sum + row.netAmount, 0),
+        receiptCount: reportRows.reduce((sum, row) => sum + row.receiptCount, 0),
+        missingCount: reportRows.reduce((sum, row) => sum + row.missingCount, 0)
+    };
+
+    return { rows: reportRows, totals: totals };
 }
 
 module.exports = router;

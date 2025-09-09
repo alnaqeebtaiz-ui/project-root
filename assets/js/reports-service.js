@@ -29,3 +29,30 @@ export async function generateReport(reportType, filters) {
         throw error; // أعد رمي الخطأ ليتم التعامل معه في الواجهة
     }
 }
+
+/**
+ * --- دالة جديدة: جلب بيانات التقرير السنوي ---
+ * @param {object} filters - فلاتر التقرير { year, collectorId }
+ * @returns {Promise<Object>} - بيانات التقرير المقسمة شهريًا مع الإجماليات
+ */
+export async function generateAnnualReport(filters) {
+    try {
+        const response = await fetch(`${API_URL}/generate`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            // نرسل نوع تقرير جديد ليتعرف عليه الخادم
+            body: JSON.stringify({ reportType: 'annual-summary', filters }),
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.msg || 'فشل في توليد التقرير السنوي.');
+        }
+        return await response.json();
+    } catch (error) {
+        console.error("Error generating annual report:", error);
+        throw error;
+    }
+}

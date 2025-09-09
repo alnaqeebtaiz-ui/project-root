@@ -5,6 +5,10 @@ const MissingReceiptSchema = new mongoose.Schema({
         type: Number,
         required: true
     },
+    estimatedDate: {
+        type: Date,
+        default: null
+    },
     status: {
         type: String,
         enum: ['مفقود', 'ملغي', 'تالف', 'خطأ إدخال'],

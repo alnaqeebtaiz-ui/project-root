@@ -5,95 +5,94 @@ const Notebook = require('../models/Notebook');
 const mongoose = require('mongoose');
 const Collector = require('../models/Collector');
 
-// --- مسار المزامنة (يبقى كما هو حاليًا) ---
-// --- تم تعديل هذا المسار بالكامل ليدعم "المزامنة الذكية" ---
+
+// --- تم تعديل هذا المسار بالكامل ليدعم "المزامنة الذكية" مع إضافة التاريخ التقديري ---
 router.post('/sync', async (req, res) => {
     try {
-        // الخطوة 1: ابحث عن آخر سند تمت معالجته
-        const lastSyncedReceipt = await Receipt.findOne().sort({ createdAt: -1 });
         const lastNotebookUpdate = await Notebook.findOne().sort({ updatedAt: -1 });
-
         let receiptsToProcess;
-        // إذا كانت هناك دفاتر تمت مزامنتها من قبل، قم بالمزامنة الذكية
+
         if (lastNotebookUpdate) {
-            // جلب السندات الجديدة + السندات التي حالتها ليست "نشطة" (لإعادة تقييمها)
+            // المزامنة الذكية: جلب السندات الجديدة فقط
             receiptsToProcess = await Receipt.find({
-                $or: [
-                    { createdAt: { $gt: lastNotebookUpdate.updatedAt } },
-                    { status: { $ne: 'active' } }
-                ]
+                createdAt: { $gt: lastNotebookUpdate.updatedAt }
             }).populate('collector', 'name');
             if (receiptsToProcess.length === 0) {
-                return res.json({ message: 'لا توجد سندات جديدة أو محدثة للمزامنة.' });
+                return res.json({ message: 'لا توجد سندات جديدة للمزامنة.' });
             }
         } else {
-            // المزامنة الكاملة لأول مرة فقط
+            // المزامنة الكاملة لأول مرة
             receiptsToProcess = await Receipt.find().populate('collector', 'name');
             if (receiptsToProcess.length === 0) {
                 return res.json({ message: 'لا توجد سندات للمزامنة.' });
             }
-            await Notebook.deleteMany({}); // تنظيف فقط في حالة المزامنة الكاملة
+            await Notebook.deleteMany({});
         }
 
-        // الخطوة 2: تجميع السندات المطلوبة حسب الدفتر والمحصل
         const notebooksToUpdate = new Map();
         for (const receipt of receiptsToProcess) {
             const startNumber = Math.floor((receipt.receiptNumber - 1) / 50) * 50 + 1;
             const collectorId = receipt.collector ? receipt.collector._id.toString() : 'unassigned';
             const key = `${startNumber}_${collectorId}`;
-
             if (!notebooksToUpdate.has(key)) {
-                notebooksToUpdate.set(key, {
-                    startNumber: startNumber,
-                    endNumber: startNumber + 49,
-                    collectorId: collectorId,
-                    collectorName: receipt.collector ? receipt.collector.name : 'غير محدد',
-                    receipts: new Set()
-                });
+                notebooksToUpdate.set(key, { startNumber, collectorId });
             }
-            notebooksToUpdate.get(key).receipts.add(receipt.receiptNumber);
         }
 
-        // الخطوة 3: تحديث الدفاتر في قاعدة البيانات
         for (const notebookData of notebooksToUpdate.values()) {
-            // جلب كل السندات الموجودة فعليًا لهذا الدفتر من قاعدة البيانات
-            const allUsedReceiptsInDB = await Receipt.find({
-                collector: notebookData.collectorId,
-                receiptNumber: { $gte: notebookData.startNumber, $lte: notebookData.endNumber }
-            });
-            const existingNumbers = new Set(allUsedReceiptsInDB.map(r => r.receiptNumber));
-            
-            if(existingNumbers.size === 0) continue;
+            const { startNumber, collectorId } = notebookData;
+            const endNumber = startNumber + 49;
 
+            const allUsedReceiptsInDB = await Receipt.find({
+                collector: collectorId,
+                receiptNumber: { $gte: startNumber, $lte: endNumber }
+            }).sort({ receiptNumber: 1 }); // فرز تصاعدي مهم جدًا هنا
+
+            if (allUsedReceiptsInDB.length === 0) continue;
+
+            const existingNumbers = new Set(allUsedReceiptsInDB.map(r => r.receiptNumber));
+            const receiptDateMap = new Map(allUsedReceiptsInDB.map(r => [r.receiptNumber, r.date]));
+            
+            const collectorName = allUsedReceiptsInDB[0]?.collector?.name || 'غير محدد';
             const minUsed = Math.min(...existingNumbers);
             const maxUsed = Math.max(...existingNumbers);
             const missingInThisNotebook = [];
             const pendingInThisNotebook = [];
 
-            for (let j = notebookData.startNumber; j <= notebookData.endNumber; j++) {
+            for (let j = startNumber; j <= endNumber; j++) {
                 if (existingNumbers.has(j)) continue;
 
                 if (j > minUsed && j < maxUsed) {
-                    missingInThisNotebook.push({ receiptNumber: j, status: 'مفقود' });
+                    // --- منطق حساب التاريخ التقديري ---
+                    let estimatedDate = null;
+                    // ابحث عن السند المستخدم الذي قبله مباشرة
+                    let prevReceipt = allUsedReceiptsInDB.filter(r => r.receiptNumber < j).pop();
+                    if (prevReceipt) {
+                        estimatedDate = prevReceipt.date;
+                    } else {
+                        // إذا لم يوجد قبله، ابحث عن أول سند بعده
+                        let nextReceipt = allUsedReceiptsInDB.find(r => r.receiptNumber > j);
+                        if(nextReceipt) {
+                            estimatedDate = nextReceipt.date;
+                        }
+                    }
+                    missingInThisNotebook.push({ receiptNumber: j, status: 'مفقود', estimatedDate: estimatedDate });
                 } else if (j > maxUsed) {
                     pendingInThisNotebook.push(j);
                 }
             }
             
             const updatePayload = {
-                startNumber: notebookData.startNumber,
-                endNumber: notebookData.endNumber,
-                collectorId: notebookData.collectorId !== 'unassigned' ? notebookData.collectorId : null,
-                collectorName: notebookData.collectorName,
+                startNumber, endNumber, collectorId, collectorName,
                 missingReceipts: missingInThisNotebook,
                 pendingReceipts: pendingInThisNotebook,
                 minUsedInNotebook: minUsed,
                 maxUsedInNotebook: maxUsed,
-                status: (pendingInThisNotebook.length === 0 && missingInThisNotebook.length === 0 && (maxUsed === notebookData.endNumber || existingNumbers.size === 50)) ? 'مكتمل' : 'قيد الاستخدام'
+                status: (pendingInThisNotebook.length === 0 && (maxUsed === endNumber || existingNumbers.size === 50)) ? 'مكتمل' : 'قيد الاستخدام'
             };
             
             await Notebook.findOneAndUpdate(
-                { startNumber: notebookData.startNumber, collectorId: notebookData.collectorId },
+                { startNumber: startNumber, collectorId: collectorId },
                 updatePayload,
                 { upsert: true, new: true }
             );
@@ -106,7 +105,6 @@ router.post('/sync', async (req, res) => {
         res.status(500).send('Server Error');
     }
 });
-// --- نهاية تعديل مسار المزامنة ---
 
 // --- تم تعديل هذا المسار بالكامل لدعم العرض المجدول والترقيم ---
 router.get('/', async (req, res) => {

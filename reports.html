@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>مركز التقارير - نظام إدارة الفواتير</title>
+    <title>تقارير المحصلين - نظام إدارة الفواتير</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <link rel="stylesheet" href="assets/css/styles.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -56,7 +56,7 @@
     <div class="page-container">
         <header class="page-header">
             <div class="container">
-                <h1>مركز التقارير</h1>
+                <h1>تقارير المحصلين</h1>
                 <nav class="breadcrumb">
                     <a href="dashboard.html">لوحة التحكم</a> / <span>التقارير</span>
                 </nav>
@@ -71,15 +71,16 @@
                             <label for="reportTypeSelect"><strong>اختر نوع التقرير:</strong></label>
                             <select id="reportTypeSelect" class="form-control">
                                 <option value="">-- اختر --</option>
-                                <option value="detailed-periodic">التقرير التفصيلي الدوري</option>
-                                <option value="periodic-summary-table">الجدول التجميعي الدوري</option>
+                                <option value="detailed-periodic">التقرير التفصيلي</option>
+                                <option value="periodic-summary-table">التقرير الدوري</option>
+                                <option value="annual-summary">التقرير السنوي</option>
                             </select>
                         </div>
 
                         <div id="date-range-filter-group" class="filter-group">
                             <div class="form-group">
                                 <label for="startDate">من تاريخ:</label>
-                                <input type="date" id="startDate" class="form-control">
+                                <input type="date" id="startDateFilter" class="form-control" data-placeholder="yyyy-mm-dd">
                             </div>
                             <div class="form-group">
                                 <label for="endDate">إلى تاريخ:</label>
@@ -87,11 +88,11 @@
                             </div>
                         </div>
                         <div id="collectors-filter-group" class="filter-group">
-                             <div class="form-group">
-                                 <label for="collectorSearchInput">المحصل:</label>
-                                 <input type="text" id="collectorSearchInput" class="form-control" list="collectors-list" placeholder="ابحث بالاسم أو الكود...">
-                                 <datalist id="collectors-list"></datalist>
-                             </div>
+                            <div class="form-group">
+                                <label for="collectorSearchInput">المحصل:</label>
+                                <input type="text" id="collectorSearchInput" class="form-control" list="collectors-list" placeholder="ابحث بالاسم أو الكود...">
+                                <datalist id="collectors-list"></datalist>
+                            </div>
                         </div>
                         
                         <div id="periodic-summary-filter-group" class="filter-group">
@@ -99,25 +100,34 @@
                                 <label for="yearFilter">السنة:</label>
                                 <select id="yearFilter" class="form-control"></select>
                             </div>
-                             <div class="form-group">
+                            <div class="form-group">
                                 <label for="monthFilter">الشهر:</label>
                                 <select id="monthFilter" class="form-control"></select>
                             </div>
-                             <div class="form-group">
+                            <div class="form-group">
                                 <label for="fromCycleFilter">من دورة:</label>
                                 <select id="fromCycleFilter" class="form-control">
-                                    <option value="1">1</option>
-                                    <option value="2">2</option>
-                                    <option value="3">3</option>
+                                    <option value="1">1</option> <option value="2">2</option> <option value="3">3</option>
                                 </select>
                             </div>
-                             <div class="form-group">
+                            <div class="form-group">
                                 <label for="toCycleFilter">إلى دورة:</label>
                                 <select id="toCycleFilter" class="form-control">
-                                    <option value="1">1</option>
-                                    <option value="2">2</option>
-                                    <option value="3">3</option>
+                                    <option value="1">1</option> <option value="2">2</option> <option value="3">3</option>
                                 </select>
+                            </div>
+                        </div>
+                        
+                        <div id="annual-summary-filter-group" class="filter-group">
+                            <div class="form-group">
+                                <label for="annualYearFilter">اختر السنة:</label>
+                                <select id="annualYearFilter" class="form-control"></select>
+                            </div>
+                            <div class="form-group autocomplete-container">
+                                <label for="annualCollectorFilter">المحصل (اختياري):</label>
+                                <input type="text" id="annualCollectorFilter" placeholder="اتركه فارغًا للكل..." class="form-control" autocomplete="off" style="width: 250px;">
+                                <input type="hidden" id="annualCollectorIdFilter">
+                                <div id="annualCollectorResults" class="autocomplete-results" style="display: none;"></div>
                             </div>
                         </div>
                         
@@ -156,6 +166,12 @@
         const monthFilter = document.getElementById('monthFilter');
         const fromCycleFilter = document.getElementById('fromCycleFilter');
         const toCycleFilter = document.getElementById('toCycleFilter');
+
+        // --- أضف هذه المتغيرات الجديدة ---
+        const annualYearFilter = document.getElementById('annualYearFilter');
+        const annualCollectorFilterInput = document.getElementById('annualCollectorFilter');
+        const annualCollectorIdFilter = document.getElementById('annualCollectorIdFilter');
+        const annualCollectorResultsDiv = document.getElementById('annualCollectorResults');
         
         // --- Helper function for formatting numbers consistently ---
         function formatNumber(value) {
@@ -182,8 +198,16 @@
             monthFilter.value = currentMonth;
         }
 
+        function initializeAnnualFilters() {
+            const currentYear = new Date().getFullYear();
+            for (let i = currentYear; i >= currentYear - 5; i--) {
+                annualYearFilter.innerHTML += `<option value="${i}">${i}</option>`;
+            }
+        }
+
         async function initializePage() {
-            initializePeriodicFilters(); // Setup new filters
+            initializePeriodicFilters();
+            initializeAnnualFilters(); // <-- الإضافة الجديدة هنا
             try {
                 const response = await fetch('http://localhost:3000/api/collectors');
                 if (!response.ok) throw new Error('فشل الاتصال بخادم المحصلين');
@@ -197,7 +221,7 @@
             } catch (error) {
                 showToast(error.message || 'فشل تحميل قائمة المحصلين', 'error');
             }
-        }
+}
         
         // --- ADDED: Logic to sync cycle filters ---
         function syncCycleFilters() {
@@ -234,7 +258,10 @@
                     document.getElementById('periodic-summary-filter-group').classList.add('active');
                     syncCycleFilters(); // Sync filters on selection
                     break;
-            }
+                case 'annual-summary':
+                    document.getElementById('annual-summary-filter-group').classList.add('active');
+                    break;
+                        }
             generateReportBtn.disabled = false;
         }
 
@@ -243,7 +270,9 @@
             if (!reportType) return;
 
             let filters = {};
-            // --- UPDATED: Logic to gather filters based on report type ---
+            let serviceFunction; // متغير لتخزين الدالة التي سنستدعيها
+
+            // تحديث: بناء الفلاتر واستدعاء الدالة المناسبة حسب نوع التقرير
             switch (reportType) {
                 case 'detailed-periodic':
                     filters.startDate = document.getElementById('startDate').value;
@@ -252,6 +281,7 @@
                     const selectedValue = collectorSearchInput.value;
                     const selectedCollector = allCollectors.find(c => `${c.name} (${c.collectorCode})` === selectedValue);
                     filters.collectorId = selectedCollector ? selectedCollector._id : null;
+                    serviceFunction = () => reportService.generateReport(reportType, filters); // الدالة القديمة
                     break;
                 
                 case 'periodic-summary-table':
@@ -259,12 +289,20 @@
                     filters.month = parseInt(monthFilter.value);
                     filters.fromCycle = parseInt(fromCycleFilter.value);
                     filters.toCycle = parseInt(toCycleFilter.value);
-                    // Auto-correct if from > to
                     if (filters.fromCycle > filters.toCycle) {
-                       [filters.fromCycle, filters.toCycle] = [filters.toCycle, filters.fromCycle];
-                       fromCycleFilter.value = filters.fromCycle;
-                       toCycleFilter.value = filters.toCycle;
+                    [filters.fromCycle, filters.toCycle] = [filters.toCycle, filters.fromCycle];
+                    fromCycleFilter.value = filters.fromCycle;
+                    toCycleFilter.value = filters.toCycle;
                     }
+                    serviceFunction = () => reportService.generateReport(reportType, filters); // الدالة القديمة
+                    break;
+
+                // --- الإضافة الجديدة هنا ---
+                case 'annual-summary':
+                    filters.year = annualYearFilter.value;
+                    filters.collectorId = annualCollectorIdFilter.value || null;
+                    // استخدم الدالة الجديدة التي أنشأناها في ملف الخدمة
+                    serviceFunction = () => reportService.generateAnnualReport(filters); 
                     break;
             }
             
@@ -273,15 +311,68 @@
             generateReportBtn.disabled = true;
 
             try {
-                currentReportData = await reportService.generateReport(reportType, filters);
-                renderReport(reportType);
-                exportExcelBtn.disabled = currentReportData.length === 0;
+                currentReportData = await serviceFunction(); // استدعاء الدالة المحددة
+                renderReport(reportType); // سنقوم بتحديث هذه الدالة في الخطوة التالية
+                exportExcelBtn.disabled = !currentReportData || currentReportData.length === 0;
             } catch (error) {
                 reportTableContainer.innerHTML = `<p class="error-message">${error.message}</p>`;
-                currentReportData = [];
+                currentReportData = null;
             } finally {
                 generateReportBtn.disabled = false;
             }
+        }
+
+        function renderAnnualReport(data) {
+            if (!data || !data.rows) {
+                reportTableContainer.innerHTML = '<p>لا توجد بيانات لهذه السنة.</p>';
+                return;
+            }
+            
+            const table = document.createElement('table');
+            table.className = 'data-table';
+
+            const theadHTML = `
+                <thead>
+                    <tr>
+                        <th>الشهر</th>
+                        <th>إجمالي التحصيل</th>
+                        <th>إجمالي التوريد</th>
+                        <th>صافي المبلغ</th>
+                        <th>عدد السندات</th>
+                        <th>السندات المفقودة</th>
+                    </tr>
+                </thead>`;
+            
+            let tbodyHTML = '<tbody>';
+            data.rows.forEach(row => {
+                tbodyHTML += `
+                    <tr>
+                        <td>${row.month}</td>
+                        <td>${formatNumber(row.totalCollection)}</td>
+                        <td>${formatNumber(row.totalDeposit)}</td>
+                        <td>${formatNumber(row.netAmount)}</td>
+                        <td>${(row.receiptCount || 0).toLocaleString('en-US')}</td>
+                        <td>${(row.missingCount || 0).toLocaleString('en-US')}</td>
+                    </tr>`;
+            });
+            tbodyHTML += '</tbody>';
+
+            const t = data.totals;
+            const tfootHTML = `
+                <tfoot>
+                    <tr style="font-weight: bold;">
+                        <td>الإجمالي السنوي</td>
+                        <td>${formatNumber(t.totalCollection)}</td>
+                        <td>${formatNumber(t.totalDeposit)}</td>
+                        <td>${formatNumber(t.netAmount)}</td>
+                        <td>${(t.receiptCount || 0).toLocaleString('en-US')}</td>
+                        <td>${(t.missingCount || 0).toLocaleString('en-US')}</td>
+                    </tr>
+                </tfoot>`;
+
+            table.innerHTML = theadHTML + tbodyHTML + tfootHTML;
+            reportTableContainer.innerHTML = '';
+            reportTableContainer.appendChild(table);
         }
         
         // --- UPDATED: Major update to render both report types ---
@@ -298,6 +389,10 @@
                     break;
                 case 'periodic-summary-table':
                     renderPeriodicSummaryReport();
+                    break;
+
+                case 'annual-summary':
+                    renderAnnualReport(currentReportData);
                     break;
             }
         }
@@ -374,121 +469,150 @@
         }
 
         // --- UPDATED: Handle export for both report types ---
-        function handleExport() {
-            if (currentReportData.length === 0) return showToast('لا توجد بيانات لتصديرها.', 'warning');
+        async function handleExport() {
+            if (!currentReportData || (Array.isArray(currentReportData) && currentReportData.length === 0)) {
+                showToast('لا توجد بيانات لتصديرها.', 'warning');
+                return;
+            }
             
             const reportType = reportTypeSelect.value;
             let dataToExport = [];
-            let fileName = `${reportType}_Export.xlsx`;
+            let fileName = `${reportType}_${new Date().toISOString().split('T')[0]}.xlsx`;
 
-            if (reportType === 'detailed-periodic') {
-                dataToExport = currentReportData.map(row => ({'اسم المحصل': row.collectorName, 'التاريخ': row.date, 'من سند': row.fromReceipt, 'إلى سند': row.toReceipt, 'عدد السندات': row.receiptCount, 'إجمالي التحصيل': row.totalAmount, 'التوريد': row.depositAmount, 'الصافي': row.netAmount, 'رقم سند التوريد': row.depositReceipt, 'تاريخ التوريد': row.depositDate, 'ملاحظات': row.notes}));
-                
-                const totals = { count: 0, collected: 0, deposited: 0, net: 0 };
-                currentReportData.forEach(row => {
-                    if (!row.isMissing) {
-                        totals.count += row.receiptCount;
-                        totals.collected += row.totalAmount;
-                        totals.deposited += row.depositAmount || 0;
-                        totals.net += row.netAmount || 0;
-                    }
-                });
-                if (dataToExport.length > 0) {
-                    dataToExport.push({});
-                    dataToExport.push({
-                        'اسم المحصل': 'الإجمالي', 'التاريخ': '', 'من سند': '', 'إلى سند': '',
-                        'عدد السندات': totals.count, 'إجمالي التحصيل': totals.collected,
-                        'التوريد': totals.deposited, 'الصافي': totals.net,
-                        'رقم سند التوريد': '', 'تاريخ التوريد': '', 'ملاحظات': ''
-                    });
+            exportExcelBtn.disabled = true;
+            exportExcelBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+
+            try {
+                switch (reportType) {
+                    case 'detailed-periodic':
+                        dataToExport = currentReportData.map(row => ({
+                            'اسم المحصل': row.collectorName, 'التاريخ': row.date, 'من سند': row.fromReceipt, 'إلى سند': row.toReceipt, 
+                            'عدد السندات': row.receiptCount, 'إجمالي التحصيل': row.totalAmount, 'التوريد': row.depositAmount, 
+                            'الصافي': row.netAmount, 'رقم سند التوريد': row.depositReceipt, 'تاريخ التوريد': row.depositDate, 'ملاحظات': row.notes
+                        }));
+                        const totals = currentReportData.reduce((acc, row) => {
+                            if (!row.isMissing) {
+                                acc.count += row.receiptCount; acc.collected += row.totalAmount;
+                                acc.deposited += row.depositAmount || 0; acc.net += row.netAmount || 0;
+                            }
+                            return acc;
+                        }, { count: 0, collected: 0, deposited: 0, net: 0 });
+                        dataToExport.push({});
+                        dataToExport.push({ 'اسم المحصل': 'الإجمالي', 'عدد السندات': totals.count, 'إجمالي التحصيل': totals.collected, 'التوريد': totals.deposited, 'الصافي': totals.net });
+                        break;
+
+                    case 'periodic-summary-table':
+                        currentReportData.forEach((cycle, index) => {
+                            if (index > 0) dataToExport.push({});
+                            dataToExport.push({ 'التقرير': cycle.title });
+                            const cycleData = cycle.rows.map(row => ({
+                                'اسم المحصّل': row.collectorName, 'الرصيد الافتتاحي': row.openingBalance, 'عدد الإسناد': row.assignmentCount,
+                                'إجمالي التحصيل': row.totalCollection, 'إجمالي التوريد': row.totalDeposit, 'صافي المبلغ': row.netAmount, 'ملاحظات': row.notes
+                            }));
+                            dataToExport.push(...cycleData);
+                            dataToExport.push({ 'اسم المحصّل': 'إجمالي الدورة', 'الرصيد الافتتاحي': cycle.subTotal.openingBalance, 'عدد الإسناد': cycle.subTotal.assignmentCount, 'إجمالي التحصيل': cycle.subTotal.totalCollection, 'إجمالي التوريد': cycle.subTotal.totalDeposit, 'صافي المبلغ': cycle.subTotal.netAmount });
+                        });
+
+                        // --- إعادة إضافة منطق الإجمالي النهائي الذي تم حذفه ---
+                        if (currentReportData.length > 0) {
+                            const grandTotal = currentReportData.reduce((acc, cycle) => {
+                                acc.assignmentCount += cycle.subTotal.assignmentCount;
+                                acc.totalCollection += cycle.subTotal.totalCollection;
+                                acc.totalDeposit += cycle.subTotal.totalDeposit;
+                                return acc;
+                            }, {
+                                openingBalance: currentReportData[0].subTotal.openingBalance,
+                                assignmentCount: 0, totalCollection: 0, totalDeposit: 0
+                            });
+                            grandTotal.netAmount = grandTotal.openingBalance + grandTotal.totalCollection - grandTotal.totalDeposit;
+                            
+                            dataToExport.push({});
+                            dataToExport.push({ 'التقرير': 'الإجمالي النهائي لكل الدورات' });
+                            dataToExport.push({ 'اسم المحصّل': 'الرصيد الافتتاحي الإجمالي', 'الرصيد الافتتاحي': grandTotal.openingBalance });
+                            dataToExport.push({ 'اسم المحصّل': 'إجمالي عدد الإسناد', 'الرصيد الافتتاحي': grandTotal.assignmentCount });
+                            dataToExport.push({ 'اسم المحصّل': 'إجمالي التحصيل', 'الرصيد الافتتاحي': grandTotal.totalCollection });
+                            dataToExport.push({ 'اسم المحصّل': 'إجمالي التوريد', 'الرصيد الافتتاحي': grandTotal.totalDeposit });
+                            dataToExport.push({ 'اسم المحصّل': 'صافي المبلغ الإجمالي', 'الرصيد الافتتاحي': grandTotal.netAmount });
+                        }
+                        break;
+
+                    case 'annual-summary':
+                        dataToExport = currentReportData.rows.map(row => ({
+                            'الشهر': row.month, 'إجمالي التحصيل': row.totalCollection, 'إجمالي التوريد': row.totalDeposit,
+                            'صافي المبلغ': row.netAmount, 'عدد السندات': row.receiptCount, 'السندات المفقودة': row.missingCount
+                        }));
+                        const t = currentReportData.totals;
+                        dataToExport.push({});
+                        dataToExport.push({
+                            'الشهر': 'الإجمالي السنوي', 'إجمالي التحصيل': t.totalCollection, 'إجمالي التوريد': t.totalDeposit,
+                            'صافي المبلغ': t.netAmount, 'عدد السندات': t.receiptCount, 'السندات المفقودة': t.missingCount
+                        });
+                        break;
                 }
 
-            } else if (reportType === 'periodic-summary-table') {
-                // --- التعديل يبدأ هنا ---
+                const ws = XLSX.utils.json_to_sheet(dataToExport);
+                const wb = XLSX.utils.book_new();
+                XLSX.utils.book_append_sheet(wb, ws, "Report");
+                XLSX.writeFile(wb, fileName);
+                showToast('تم تصدير التقرير بنجاح', 'success');
 
-                // 1. معالجة الدورات وإجمالياتها الفرعية (كما كان)
-                currentReportData.forEach((cycle, index) => {
-                    if (index > 0) dataToExport.push({}); // صف فارغ للفصل
-                    dataToExport.push({ 'التقرير': cycle.title }); // عنوان الدورة
-                    
-                    const cycleData = cycle.rows.map(row => ({
-                        'اسم المحصّل': row.collectorName,
-                        'الرصيد الافتتاحي': row.openingBalance,
-                        'عدد الإسناد': row.assignmentCount,
-                        'إجمالي التحصيل': row.totalCollection,
-                        'إجمالي التوريد': row.totalDeposit,
-                        'صافي المبلغ': row.netAmount,
-                        'ملاحظات': row.notes
-                    }));
-                    dataToExport.push(...cycleData);
-                    
-                    // إضافة صف إجمالي الدورة
-                    dataToExport.push({
-                        'اسم المحصّل': 'إجمالي الدورة',
-                        'الرصيد الافتتاحي': cycle.subTotal.openingBalance,
-                        'عدد الإسناد': cycle.subTotal.assignmentCount,
-                        'إجمالي التحصيل': cycle.subTotal.totalCollection,
-                        'إجمالي التوريد': cycle.subTotal.totalDeposit,
-                        'صافي المبلغ': cycle.subTotal.netAmount
-                    });
-                });
-
-                // 2. حساب الإجمالي النهائي (الإضافة الجديدة والمهمة)
-                if (currentReportData.length > 0) {
-                    const grandTotal = {
-                        openingBalance: currentReportData[0].subTotal.openingBalance, // فقط من الدورة الأولى
-                        assignmentCount: 0, totalCollection: 0, totalDeposit: 0
-                    };
-                    currentReportData.forEach(cycle => {
-                        grandTotal.assignmentCount += cycle.subTotal.assignmentCount;
-                        grandTotal.totalCollection += cycle.subTotal.totalCollection;
-                        grandTotal.totalDeposit += cycle.subTotal.totalDeposit;
-                    });
-                    // حساب الصافي النهائي بناءً على المعادلة الصحيحة
-                    grandTotal.netAmount = grandTotal.openingBalance + grandTotal.totalCollection - grandTotal.totalDeposit;
-
-                    // 3. إضافة صف الإجمالي النهائي لبيانات التصدير
-                    dataToExport.push({}); // صف فارغ للفصل
-                    dataToExport.push({ 'التقرير': 'الإجمالي النهائي لكل الدورات' });
-                    dataToExport.push({
-                        'اسم المحصّل': 'الرصيد الافتتاحي',
-                        'الرصيد الافتتاحي': grandTotal.openingBalance
-                    });
-                    dataToExport.push({
-                        'اسم المحصّل': 'إجمالي عدد الإسناد',
-                        'الرصيد الافتتاحي': grandTotal.assignmentCount
-                    });
-                    dataToExport.push({
-                        'اسم المحصّل': 'إجمالي التحصيل',
-                        'الرصيد الافتتاحي': grandTotal.totalCollection
-                    });
-                    dataToExport.push({
-                        'اسم المحصّل': 'إجمالي التوريد',
-                        'الرصيد الافتتاحي': grandTotal.totalDeposit
-                    });
-                    dataToExport.push({
-                        'اسم المحصّل': 'صافي المبلغ الإجمالي',
-                        'الرصيد الافتتاحي': grandTotal.netAmount
-                    });
-                }
-                // --- نهاية التعديل ---
+            } catch (error) {
+                console.error("Export Error:", error);
+                showToast('فشل تصدير الملف.', 'error');
+            } finally {
+                exportExcelBtn.disabled = false;
+                exportExcelBtn.innerHTML = '<i class="fas fa-file-excel"></i>';
             }
-
-            if (dataToExport.length === 0) return showToast('لا توجد بيانات لتصديرها', 'warning');
-
-            const ws = XLSX.utils.json_to_sheet(dataToExport, {skipHeader: true}); // skipHeader لتنسيق أفضل
-            const wb = XLSX.utils.book_new();
-            XLSX.utils.book_append_sheet(wb, ws, "Report");
-            XLSX.writeFile(wb, fileName);
-            showToast('تم تصدير التقرير بنجاح', 'success');
         }
 
-        document.addEventListener('DOMContentLoaded', initializePage);
-        reportTypeSelect.addEventListener('change', updateVisibleFilters);
-        generateReportBtn.addEventListener('click', handleGenerateReport);
-        exportExcelBtn.addEventListener('click', handleExport);
-        // --- ADDED: Event listener for cycle filters ---
-        fromCycleFilter.addEventListener('change', syncCycleFilters);
+        function setupEventListeners() {
+            reportTypeSelect.addEventListener('change', updateVisibleFilters);
+            generateReportBtn.addEventListener('click', handleGenerateReport);
+            exportExcelBtn.addEventListener('click', handleExport);
+            fromCycleFilter.addEventListener('change', syncCycleFilters);
+
+            // --- كود البحث الذكي للمحصل في التقرير السنوي ---
+            annualCollectorFilterInput.addEventListener('keyup', () => {
+                const term = annualCollectorFilterInput.value.toLowerCase();
+                if (!term) {
+                    annualCollectorResults.style.display = 'none';
+                    annualCollectorIdFilter.value = '';
+                    return;
+                }
+                const results = allCollectors.filter(c => 
+                    c.name.toLowerCase().includes(term) || c.collectorCode.toLowerCase().includes(term)
+                );
+                
+                annualCollectorResults.innerHTML = '';
+                results.slice(0, 7).forEach(c => {
+                    const item = document.createElement('div');
+                    item.className = 'autocomplete-item';
+                    item.textContent = `${c.name} (${c.collectorCode})`;
+                    item.dataset.id = c._id;
+                    annualCollectorResults.appendChild(item);
+                });
+                annualCollectorResults.style.display = 'block';
+            });
+
+            annualCollectorResults.addEventListener('click', (e) => {
+                const item = e.target.closest('.autocomplete-item');
+                if(item) {
+                    annualCollectorFilterInput.value = item.textContent;
+                    annualCollectorIdFilter.value = item.dataset.id;
+                    annualCollectorResults.style.display = 'none';
+                }
+            });
+
+            document.addEventListener('click', (e) => {
+                if (!e.target.closest('.autocomplete-container')) {
+                    annualCollectorResults.style.display = 'none';
+                }
+            });
+        }
+        document.addEventListener('DOMContentLoaded', () => {
+            initializePage();
+            setupEventListeners(); // استدعاء دالة الإعدادات الجديدة
+        });
 
     </script>
 </body>

@@ -12,7 +12,7 @@ body {
 
 /* Container for content */
 .container {
-    max-width: 1100px; /* Increased width for better layout */
+    max-width: 1300px; /* Increased width for better layout */
     margin: 40px auto;
     padding: 20px;
 }
@@ -546,5 +546,31 @@ body {
 }
 .missing-receipt-item:hover {
     background-color: #f8d7da;
+}
+
+/* * ===============================================
+ * إصلاح مشكلة الكتابة المعكوسة في حقول التاريخ
+ * ===============================================
+ * هذا الكود يظهر كتابة بديلة ويخفيها عند اختيار تاريخ.
+*/
+
+input[type="date"] {
+    position: relative;
+    text-align: right; /* للتأكد من محاذاة النص لليمين */
+}
+
+/* الكتابة البديلة التي ستظهر */
+input[type="date"]::before {
+    content: attr(data-placeholder); /* يقرأ المحتوى من خاصية data-placeholder */
+    position: absolute;
+    color: #6c757d; /* لون الكتابة الباهتة */
+    display: block;
+    width: 100%;
+}
+
+/* إخفاء الكتابة البديلة عندما يتم التركيز على الحقل أو اختيار تاريخ */
+input[type="date"]:focus::before,
+input[type="date"]:valid::before {
+    display: none;
 }
 
