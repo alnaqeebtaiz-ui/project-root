@@ -6,7 +6,33 @@ const router = express.Router();
 const Subscriber = require('../models/Subscriber');
 
 // --- تعريف المسارات (قائمة الطعام) ---
+// --- الإضافة الجديدة والمهمة تبدأ هنا ---
+// المسار 1: للبحث الذكي عن المشتركين (يجب أن يأتي قبل المسار العام /:id)
+router.get('/search', async (req, res) => {
+    try {
+        const searchTerm = req.query.q || '';
+        if (searchTerm.length < 2) {
+            return res.json([]); // لا تقم بالبحث إلا بعد إدخال حرفين على الأقل
+        }
 
+        // إنشاء تعبير نمطي للبحث (case-insensitive)
+        const regex = new RegExp(searchTerm, 'i');
+
+        // البحث في الاسم أو العنوان أو الهاتف، وإعادة أول 10 نتائج فقط
+        const subscribers = await Subscriber.find({
+            $or: [
+                { name: regex },
+                { address: regex },
+                { phone: regex }
+            ]
+        }).limit(10);
+
+        res.json(subscribers);
+    } catch (err) {
+        res.status(500).json({ message: 'حدث خطأ في الخادم أثناء البحث.' });
+    }
+});
+// --- الإضافة الجديدة تنتهي هنا ---
 // --- تم تعديل هذا المسار لدعم حالة التصدير الكامل ---
 // المسار 1: جلب المشتركين مع دعم الترقيم والبحث (GET /api/subscribers)
 router.get('/', async (req, res) => {
