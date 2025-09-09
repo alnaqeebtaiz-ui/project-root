@@ -1,25 +1,60 @@
 // استيراد Express لإنشاء "راوتر" خاص بالمسارات
 const express = require('express');
 const router = express.Router();
+const mongoose = require('mongoose'); // <-- استيراد Mongoose
 
 // استيراد "نموذج التوريد" الذي أنشأناه
 const Deposit = require('../models/Deposit');
 
 // --- تعريف المسارات (قائمة الطعام) ---
 
-// المسار 1: جلب جميع سجلات التوريد (GET /api/deposits)
+// --- تم تعديل هذا المسार بالكامل لدعم الترقيم والفلاتر ---
+// المسار 1: جلب سجلات التوريد مع دعم الترقيم والفلترة (GET /api/deposits)
 router.get('/', async (req, res) => {
     try {
-        // .populate() لجلب بيانات المحصل المرتبطة بدلاً من مجرد الـ ID
-        const deposits = await Deposit.find()
-            .populate('collector', 'name collectorCode') // من مجموعة المحصلين، أحضر الاسم والكود
-            .sort({ depositDate: -1 }); // جلبهم مرتبين بالتاريخ (الأحدث أولاً)
-            
-        res.json(deposits);
+        const page = parseInt(req.query.page) || 1;
+        const limit = parseInt(req.query.limit) === 0 ? 0 : (parseInt(req.query.limit) || 50);
+
+        const queryConditions = {};
+
+        // فلتر نطاق التاريخ
+        if (req.query.startDate && req.query.endDate) {
+            const startDate = new Date(req.query.startDate);
+            const endDate = new Date(req.query.endDate);
+            endDate.setUTCHours(23, 59, 59, 999); // لضمان شمول اليوم الأخير كاملاً
+            queryConditions.depositDate = { $gte: startDate, $lte: endDate };
+        }
+
+        // فلتر المحصل
+        if (req.query.collectorId && mongoose.Types.ObjectId.isValid(req.query.collectorId)) {
+            queryConditions.collector = req.query.collectorId;
+        }
+
+        const totalDeposits = await Deposit.countDocuments(queryConditions);
+
+        let query = Deposit.find(queryConditions)
+            .populate('collector', 'name collectorCode')
+            .sort({ depositDate: -1 });
+
+        // تطبيق الترقيم فقط إذا لم يكن طلب تصدير (limit !== 0)
+        if (limit !== 0) {
+            query = query.skip((page - 1) * limit).limit(limit);
+        }
+
+        const deposits = await query;
+
+        res.json({
+            deposits,
+            currentPage: page,
+            totalPages: limit === 0 ? 1 : Math.ceil(totalDeposits / limit),
+            totalDeposits
+        });
+
     } catch (err) {
         res.status(500).json({ message: 'حدث خطأ في الخادم' });
     }
 });
+// --- نهاية التعديل ---
 
 // المسار 2: إضافة سجل توريد جديد (POST /api/deposits)
 router.post('/', async (req, res) => {
@@ -27,7 +62,7 @@ router.post('/', async (req, res) => {
         amount: req.body.amount,
         depositDate: req.body.depositDate,
         referenceNumber: req.body.referenceNumber,
-        collector: req.body.collector, // يجب أن يكون ID المحصل
+        collector: req.body.collector,
     });
 
     try {

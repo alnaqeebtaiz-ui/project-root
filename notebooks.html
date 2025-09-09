@@ -7,49 +7,33 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <link rel="stylesheet" href="assets/css/styles.css">
     <style>
-        /* --- تصميم بطاقة الدفتر الرئيسية --- */
-        .notebook-card-grid {
-            background-color: #fff;
-            border: 1px solid #e9ecef;
-            border-radius: 8px;
-            padding: 20px;
-            margin-bottom: 20px;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+        .pagination-controls {
+            display: flex; justify-content: center; align-items: center;
+            margin-top: 20px; gap: 15px;
         }
-        .notebook-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 15px;
-            padding-bottom: 10px;
-            border-bottom: 1px solid #f1f1f1;
+        .pagination-controls button { cursor: pointer; }
+        #pageInfo { font-weight: bold; }
+        
+        .notebook-details-header {
+            display: flex; justify-content: space-between; align-items: center;
+            margin-bottom: 15px; padding-bottom: 10px; border-bottom: 1px solid #f1f1f1;
         }
-        /* --- تصميم شبكة عرض السندات --- */
-        .receipts-grid {
+        .notebook-details-grid {
             display: grid;
             grid-template-columns: repeat(auto-fill, minmax(60px, 1fr));
-            gap: 8px;
+            gap: 8px; margin-top: 15px;
         }
         .receipt-cell {
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 40px;
-            border-radius: 6px;
-            font-weight: bold;
-            color: #fff;
-            font-size: 14px;
-            cursor: help; /* يتغير شكل المؤشر ليدل على وجود معلومات إضافية */
+            display: flex; justify-content: center; align-items: center;
+            height: 40px; border-radius: 6px; font-weight: bold;
+            color: #fff; font-size: 14px; cursor: help;
             transition: transform 0.2s ease;
         }
-        .receipt-cell:hover {
-            transform: scale(1.1);
-        }
-        /* --- الألوان الخاصة بحالة كل سند --- */
-        .status-used { background-color: #28a745; } /* أخضر - مستخدم */
-        .status-missing { background-color: #dc3545; } /* أحمر - مفقود */
-        .status-pending { background-color: #007bff; } /* أزرق - قيد الانتظار */
-        .status-ignored { background-color: #f8f9fa; color: #adb5bd; border: 1px solid #dee2e6; } /* رمادي - مهمل */
+        .receipt-cell:hover { transform: scale(1.1); }
+        .status-used { background-color: #28a745; }
+        .status-missing { background-color: #dc3545; cursor: pointer !important; }
+        .status-pending { background-color: #007bff; }
+        .status-ignored { background-color: #f8f9fa; color: #adb5bd; border: 1px solid #dee2e6; }
     </style>
 </head>
 <body>
@@ -68,7 +52,6 @@
                 
                 <div class="action-bar-container">
                     <div class="action-bar" style="justify-content: space-between;">
-                        <!-- منطقة البحث -->
                         <div class="search-area" style="display: flex; gap: 10px; align-items: center;">
                              <div class="form-group">
                                 <label for="receiptSearchInput"><strong>ابحث عن سند:</strong></label>
@@ -76,33 +59,54 @@
                             </div>
                             <button id="searchBtn" class="btn btn-primary"><i class="fas fa-search"></i> بحث</button>
                         </div>
-                        <!-- زر المزامنة -->
                         <button id="sync-btn" class="btn btn-success">
                             <i class="fas fa-sync-alt"></i> تحديث ومزامنة الدفاتر
                         </button>
                     </div>
                 </div>
 
-                <!-- --- منطقة عرض نتيجة البحث --- -->
-                <div id="search-result-container" class="search-result-container" style="display: none;">
-                    <!-- سيتم ملء النتيجة هنا -->
-                </div>
+                <div id="search-result-container" style="display: none; margin-bottom: 20px;"></div>
 
-                <div class="table-container" id="notebooks-list-container">
-                    <h2>قائمة الدفاتر</h2>
-                    <div id="notebooks-container">
-                        <div class="loader"></div>
-                    </div>
+                <div class="table-container" id="notebooks-table-container">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>#</th>
+                                <th>نطاق الدفتر</th>
+                                <th>السندات المستخدمة</th>
+                                <th>السندات المفقودة</th>
+                                <th>قيد الانتظار</th>
+                                <th>الحالة</th>
+                                <th style="text-align: center;">الإجراءات</th>
+                            </tr>
+                        </thead>
+                        <tbody id="notebooksTableBody"></tbody>
+                    </table>
+                </div>
+                
+                <div class="pagination-controls" id="paginationControls" style="display: none;">
+                    <button id="nextPageBtn" class="btn btn-default">&laquo; التالي</button>
+                    <span id="pageInfo"></span>
+                    <button id="prevPageBtn" class="btn btn-default">السابق &raquo;</button>
                 </div>
 
             </div>
         </main>
     </div>
 
-    <!-- Modal for editing missing receipt -->
+    <div id="notebook-details-modal" class="modal">
+        <div class="modal-content modal-lg">
+             <header class="modal-header">
+                <h2 id="modal-title">تفاصيل الدفتر</h2>
+                <button class="close-button">&times;</button>
+            </header>
+            <div class="modal-body" id="modal-body-content"></div>
+        </div>
+    </div>
+    
     <div id="edit-missing-receipt-modal" class="modal">
         <div class="modal-content">
-             <header class="modal-header">
+            <header class="modal-header">
                 <h2>تعديل حالة السند المفقود</h2>
                 <button class="close-button">&times;</button>
             </header>
@@ -128,7 +132,7 @@
                         <textarea id="missing-notes" rows="3"></textarea>
                     </div>
                     <footer class="modal-footer">
-                         <button type="submit" class="btn btn-primary">حفظ التغييرات</button>
+                        <button type="submit" class="btn btn-primary">حفظ التغييرات</button>
                     </footer>
                 </form>
             </div>
@@ -141,94 +145,138 @@
         import * as notebookService from './assets/js/notebooks-service.js';
         import { showToast, sanitizeInput, formatCurrency } from './assets/js/utils.js';
 
+        // --- Global State ---
+        let currentPage = 1;
+        const PAGE_LIMIT = 50;
+
         // --- DOM Elements ---
-        const notebooksContainer = document.getElementById('notebooks-container');
+        const tableBody = document.getElementById('notebooksTableBody');
         const syncBtn = document.getElementById('sync-btn');
         const searchInput = document.getElementById('receiptSearchInput');
         const searchBtn = document.getElementById('searchBtn');
         const searchResultContainer = document.getElementById('search-result-container');
-        const modal = document.getElementById('edit-missing-receipt-modal');
-        const editForm = document.getElementById('edit-missing-receipt-form');
+        const paginationControls = document.getElementById('paginationControls');
+        const pageInfo = document.getElementById('pageInfo');
+        const prevPageBtn = document.getElementById('prevPageBtn');
+        const nextPageBtn = document.getElementById('nextPageBtn');
+        const detailsModal = document.getElementById('notebook-details-modal');
+        const detailsModalBody = document.getElementById('modal-body-content');
+        const editMissingModal = document.getElementById('edit-missing-receipt-modal');
+        const editMissingForm = document.getElementById('edit-missing-receipt-form');
 
         // --- Core Functions ---
-        async function initializePage() {
-            notebooksContainer.innerHTML = `<div class="loader"></div>`;
+        async function loadNotebooks(page = 1) {
+            tableBody.innerHTML = `<tr><td colspan="7" style="text-align: center; padding: 2rem;">جاري تحميل البيانات...</td></tr>`;
+            paginationControls.style.display = 'none';
+            currentPage = page;
             try {
-                const notebooks = await notebookService.getNotebooks();
-                renderNotebooks(notebooks);
+                const data = await notebookService.getNotebooksPaged(page, PAGE_LIMIT);
+                renderNotebooksTable(data.notebooks);
+                updatePaginationControls(data);
             } catch (error) {
-                notebooksContainer.innerHTML = `<p class="error-message">${error.message}</p>`;
+                tableBody.innerHTML = `<tr><td colspan="7" class="error-message" style="text-align: center;">${error.message}</td></tr>`;
             }
         }
 
-        function renderNotebooks(notebooks) {
-            notebooksContainer.innerHTML = '';
+        function renderNotebooksTable(notebooks) {
+            tableBody.innerHTML = '';
             if (notebooks.length === 0) {
-                notebooksContainer.innerHTML = '<p>لم تتم مزامنة أي دفاتر بعد. اضغط على زر المزامنة للبدء.</p>';
+                tableBody.innerHTML = '<tr><td colspan="7" style="text-align: center; padding: 2rem;">لم تتم مزامنة أي دفاتر بعد.</td></tr>';
                 return;
             }
-
             notebooks.forEach(notebook => {
-                const card = document.createElement('div');
-                card.className = 'notebook-card-grid';
-
-                const headerHTML = `
-                    <div class="notebook-header">
-                        <h3>دفتر: ${notebook.startNumber} - ${notebook.endNumber}</h3>
-                        <span>المحصل: <strong>${sanitizeInput(notebook.collectorName)}</strong></span>
-                    </div>`;
-
-                const gridContainer = document.createElement('div');
-                gridContainer.className = 'receipts-grid';
-                
-                const missingNumbersData = new Map(notebook.missingReceipts.map(r => [r.receiptNumber, r]));
-                const pendingNumbers = new Set(notebook.pendingReceipts);
-
-                for (let j = notebook.startNumber; j <= notebook.endNumber; j++) {
-                    const cell = document.createElement('div');
-                    cell.className = 'receipt-cell';
-                    let statusClass, statusTitle;
-
-                    if (missingNumbersData.has(j)) {
-                        statusClass = 'status-missing';
-                        statusTitle = 'الحالة: مفقود (اضغط للتعديل)';
-                        // --- إضافة مهمة: إعادة إضافة البيانات لتشغيل النافذة ---
-                        const missingData = missingNumbersData.get(j);
-                        cell.dataset.notebookId = notebook._id;
-                        cell.dataset.receiptNumber = j;
-                        cell.dataset.status = missingData?.status || 'مفقود';
-                        cell.dataset.notes = missingData?.notes || '';
-                    } else if (pendingNumbers.has(j)) {
-                        statusClass = 'status-pending';
-                        statusTitle = 'الحالة: قيد الانتظار';
-                    } else if (j < notebook.minUsedInNotebook) {
-                        statusClass = 'status-ignored';
-                        statusTitle = 'الحالة: مهمل';
-                    } else {
-                        statusClass = 'status-used';
-                        statusTitle = 'الحالة: مستخدم';
-                    }
-
-                    cell.classList.add(statusClass);
-                    cell.textContent = j;
-                    cell.title = statusTitle;
-                    gridContainer.appendChild(cell);
-                }
-
-                card.innerHTML = headerHTML;
-                card.appendChild(gridContainer);
-                notebooksContainer.appendChild(card);
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${notebook.notebookNumber}</td>
+                    <td>${notebook.startNumber} - ${notebook.endNumber}</td>
+                    <td>${notebook.availableCount || 0}</td>
+                    <td>${notebook.missingCount > 0 ? `<span style="color:red; font-weight:bold;">${notebook.missingCount}</span>` : 0}</td>
+                    <td>${notebook.pendingCount || 0}</td>
+                    <td>${notebook.status}</td>
+                    <td style="text-align: center;">
+                        <button class="btn btn-primary btn-sm" data-action="view" data-id="${notebook._id}">عرض</button>
+                    </td>
+                `;
+                tableBody.appendChild(row);
             });
+        }
+
+        function updatePaginationControls({ currentPage, totalPages, totalNotebooks }) {
+             if (totalPages > 1) {
+                pageInfo.textContent = `الصفحة ${currentPage} من ${totalPages} (إجمالي ${totalNotebooks} دفتر)`;
+                prevPageBtn.disabled = currentPage <= 1;
+                nextPageBtn.disabled = currentPage >= totalPages;
+                paginationControls.style.display = 'flex';
+            } else {
+                paginationControls.style.display = 'none';
+            }
+        }
+        
+        async function handleViewDetails(notebookId) {
+            detailsModalBody.innerHTML = `<div class="loader"></div>`;
+            detailsModal.classList.add('show');
+            try {
+                const notebook = await notebookService.getNotebookDetails(notebookId);
+                renderNotebookCard(notebook);
+            } catch (error) {
+                detailsModalBody.innerHTML = `<p class="error-message">${error.message}</p>`;
+            }
+        }
+
+        function renderNotebookCard(notebook) {
+            detailsModal.querySelector('#modal-title').textContent = `تفاصيل الدفتر: ${notebook.startNumber} - ${notebook.endNumber}`;
+            const headerHTML = `<div class="notebook-details-header"><span>المحصل: <strong>${sanitizeInput(notebook.collectorName || 'غير محدد')}</strong></span></div>`;
+            const gridContainer = document.createElement('div');
+            gridContainer.className = 'notebook-details-grid';
+            
+            const usedNumbers = new Set(notebook.usedReceipts.map(r => r.receiptNumber));
+            const missingNumbersData = new Map(notebook.missingReceipts.map(r => [r.receiptNumber, r]));
+            const pendingNumbers = new Set(notebook.pendingReceipts);
+
+            for (let j = notebook.startNumber; j <= notebook.endNumber; j++) {
+                const cell = document.createElement('div');
+                cell.className = 'receipt-cell';
+                let statusClass, statusTitle;
+
+                if (usedNumbers.has(j)) {
+                     statusClass = 'status-used'; 
+                     statusTitle = 'الحالة: مستخدم';
+                } else if (missingNumbersData.has(j)) {
+                     statusClass = 'status-missing'; 
+                     statusTitle = 'الحالة: مفقود (اضغط للتعديل)';
+                     const missingData = missingNumbersData.get(j);
+                     cell.dataset.action = 'edit-missing';
+                     cell.dataset.notebookId = notebook._id;
+                     cell.dataset.receiptNumber = j;
+                     cell.dataset.status = missingData?.status || 'مفقود';
+                     cell.dataset.notes = missingData?.notes || '';
+                } else if (pendingNumbers.has(j)) {
+                    statusClass = 'status-pending'; 
+                    statusTitle = 'الحالة: قيد الانتظار';
+                } else if (j < notebook.minUsedInNotebook) {
+                    statusClass = 'status-ignored';
+                    statusTitle = 'الحالة: مهمل';
+                } else {
+                    statusClass = 'status-used';
+                    statusTitle = 'الحالة: مستخدم';
+                }
+                cell.classList.add(statusClass);
+                cell.textContent = j;
+                cell.title = statusTitle;
+                gridContainer.appendChild(cell);
+            }
+            detailsModalBody.innerHTML = headerHTML;
+            detailsModalBody.appendChild(gridContainer);
         }
 
         async function handleSyncClick() {
             syncBtn.disabled = true;
             syncBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> جاري المزامنة...';
-            showToast('بدء عملية المزامنة...', 'info');
+            showToast('بدء عملية المزامنة، قد تستغرق بعض الوقت...', 'info');
             try {
                 const result = await notebookService.syncNotebooks();
                 showToast(result.message, 'success');
-                initializePage();
+                loadNotebooks(1); // Reload from page 1 after sync
             } catch (error) {
                 showToast(error.message, 'error');
             } finally {
@@ -251,7 +299,7 @@
                 const result = await notebookService.findReceiptDetails(receiptNumber);
                 displaySearchResult(result);
             } catch (error) {
-                 searchResultContainer.innerHTML = `<div class="card error-message">فشل البحث: ${error.message}</div>`;
+               searchResultContainer.innerHTML = `<div class="card error-message">فشل البحث: ${error.message}</div>`;
             } finally {
                 searchBtn.disabled = false;
                 searchBtn.innerHTML = `<i class="fas fa-search"></i> بحث`;
@@ -259,58 +307,61 @@
         }
 
         function displaySearchResult(result) {
-            let contentHTML = '';
-            // --- تم حذف الكلاسات الملونة من الـ div الرئيسي ---
+            let receiptCardHTML = '';
+            let notebookSummaryHTML = '';
+
+            // --- الجزء الأول: بناء بطاقة تفاصيل السند (تم تعديله ليقرأ من المصدر الصحيح) ---
             if (result.status === 'مستخدم') {
                 const r = result.receipt;
-                const notebook = result.notebook;
-                contentHTML = `
-                    <div class="card result-card">
-                        <div class="card-header">
-                            <h3>نتيجة البحث عن سند: ${r.receiptNumber}</h3>
-                            <span class="status status-success">مستخدم</span>
-                        </div>
-                        <div class="card-body">
-                            <p><strong>المشترك:</strong> ${sanitizeInput(r.subscriber?.name) || 'غير محدد'}</p>
-                            <p><strong>المبلغ:</strong> ${r.amount ? (r.amount.toLocaleString('en-US') + ' ريال') : '0 ريال'}</p>
-                            <p><strong>التاريخ:</strong> ${r.date ? r.date.split('T')[0] : 'غير محدد'}</p>
-                            <hr>
-                            <p><strong>الدفتر:</strong> ${notebook.startNumber} - ${notebook.endNumber}</p>
-                            <p><strong>المحصل:</strong> ${sanitizeInput(notebook.collectorName)}</p>
-                        </div>
-                    </div>`;
+                // تعديل: استخدم notebookSummary بدلاً من notebook
+                const notebook = result.notebookSummary; 
+                receiptCardHTML = `<div class="card result-card"><div class="card-header"><h3>نتيجة البحث عن سند: ${r.receiptNumber}</h3><span class="status status-success">مستخدم</span></div><div class="card-body"><p><strong>المشترك:</strong> ${sanitizeInput(r.subscriber?.name) || 'غير محدد'}</p><p><strong>المبلغ:</strong> ${formatCurrency(r.amount)}</p><p><strong>التاريخ:</strong> ${r.date ? r.date.split('T')[0] : 'غير محدد'}</p></div></div>`;
+            
             } else if (result.status === 'مفقود' || result.status === 'قيد الانتظار') {
                 const r = result.receipt;
-                const notebook = result.notebook;
                 const statusClass = result.status === 'مفقود' ? 'status-danger' : 'status-primary';
-                contentHTML = `
-                    <div class="card result-card">
-                        <div class="card-header">
-                            <h3>نتيجة البحث عن سند: ${r.receiptNumber}</h3>
-                            <span class="status ${statusClass}">${sanitizeInput(r.status)}</span>
-                        </div>
-                        <div class="card-body">
-                            <p><strong>الحالة:</strong> ${sanitizeInput(r.status)}</p>
-                            <p><strong>الملاحظات:</strong> ${sanitizeInput(r.notes) || 'لا يوجد'}</p>
-                            <hr>
-                            <p><strong>الدفتر:</strong> ${notebook.startNumber} - ${notebook.endNumber}</p>
-                            <p><strong>المحصل:</strong> ${sanitizeInput(notebook.collectorName)}</p>
-                        </div>
-                    </div>`;
-            } else { // غير موجود
-                contentHTML = `
-                    <div class="card result-card">
-                        <div class="card-header">
-                            <h3>نتيجة البحث عن سند: ${result.receipt.receiptNumber}</h3>
-                             <span class="status status-warning">غير موجود</span>
-                        </div>
-                        <div class="card-body">
-                           <p>هذا الرقم غير مسجل في النظام ضمن نطاق أي دفتر مستخدم.</p>
-                        </div>
-                    </div>`;
+                receiptCardHTML = `<div class="card result-card"><div class="card-header"><h3>نتيجة البحث عن سند: ${r.receiptNumber}</h3><span class="status ${statusClass}">${sanitizeInput(r.status)}</span></div><div class="card-body"><p><strong>الحالة:</strong> ${sanitizeInput(r.status)}</p><p><strong>الملاحظات:</strong> ${sanitizeInput(r.notes) || 'لا يوجد'}</p></div></div>`;
+            
+            } else {
+                receiptCardHTML = `<div class="card result-card"><div class="card-header"><h3>نتيجة البحث عن سند: ${result.receipt.receiptNumber}</h3><span class="status status-warning">غير موجود</span></div><div class="card-body"><p>هذا الرقم غير مسجل في النظام.</p></div></div>`;
             }
-            searchResultContainer.innerHTML = contentHTML;
+
+            // --- الجزء الثاني: بناء جدول ملخص الدفتر (هذا الجزء سليم وسيعمل الآن) ---
+            if (result.notebookSummary) {
+                const notebook = result.notebookSummary;
+                notebookSummaryHTML = `
+                    <p style="margin-top: 15px; font-weight: bold;">ينتمي للدفتر التالي:</p>
+                    <table class="data-table search-result-summary-table">
+                        <thead>
+                            <tr>
+                                <th>نطاق الدفتر</th>
+                                <th>السندات المستخدمة</th>
+                                <th>السندات المفقودة</th>
+                                <th>قيد الانتظار</th>
+                                <th>الحالة</th>
+                                <th style="text-align: center;">الإجراءات</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>${notebook.startNumber} - ${notebook.endNumber}</td>
+                                <td>${notebook.availableCount || 0}</td>
+                                <td>${notebook.missingCount > 0 ? `<span style="color:red; font-weight:bold;">${notebook.missingCount}</span>` : 0}</td>
+                                <td>${notebook.pendingCount || 0}</td>
+                                <td>${notebook.status}</td>
+                                <td style="text-align: center;">
+                                    <button class="btn btn-primary btn-sm" data-action="view" data-id="${notebook._id}">عرض</button>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                `;
+            }
+
+            // --- دمج الجزأين معًا وعرضهما ---
+            searchResultContainer.innerHTML = receiptCardHTML + notebookSummaryHTML;
         }
+                
 
         function setupEventListeners() {
             syncBtn.addEventListener('click', handleSyncClick);
@@ -319,8 +370,14 @@
                 if (e.key === 'Enter') handleReceiptSearch();
             });
 
-            // --- إعادة تفعيل منطق فتح النافذة ---
-            notebooksContainer.addEventListener('click', (e) => {
+            tableBody.addEventListener('click', (e) => {
+                const button = e.target.closest('button[data-action="view"]');
+                if (button) {
+                    handleViewDetails(button.dataset.id);
+                }
+            });
+            
+            detailsModalBody.addEventListener('click', (e) => {
                 const item = e.target.closest('.receipt-cell.status-missing');
                 if (item) {
                     const data = item.dataset;
@@ -329,17 +386,17 @@
                     document.getElementById('receipt-number-display').value = data.receiptNumber;
                     document.getElementById('missing-status').value = data.status;
                     document.getElementById('missing-notes').value = data.notes;
-                    modal.classList.add('show');
+                    editMissingModal.classList.add('show');
                 }
             });
 
-            modal.addEventListener('click', (event) => {
-                if (event.target === modal || event.target.classList.contains('close-button')) {
+            [detailsModal, editMissingModal].forEach(modal => {
+                modal.querySelector('.close-button').addEventListener('click', () => {
                     modal.classList.remove('show');
-                }
+                });
             });
 
-            editForm.addEventListener('submit', async (e) => {
+            editMissingForm.addEventListener('submit', async (e) => {
                 e.preventDefault();
                 const notebookId = document.getElementById('modal-notebook-id').value;
                 const receiptNumber = document.getElementById('modal-receipt-number').value;
@@ -350,19 +407,22 @@
                 try {
                     await notebookService.updateMissingReceipt(notebookId, receiptNumber, data);
                     showToast('تم حفظ التغييرات', 'success');
-                    modal.classList.remove('show');
-                    await initializePage(); // تحديث البيانات بعد الحفظ
+                    editMissingModal.classList.remove('show');
+                    await handleViewDetails(notebookId); // Refresh the details card
+                    await loadNotebooks(currentPage); // Refresh the main table
                 } catch (error) {
                     showToast(error.message, 'error');
                 }
             });
+
+            prevPageBtn.addEventListener('click', () => loadNotebooks(currentPage - 1));
+            nextPageBtn.addEventListener('click', () => loadNotebooks(currentPage + 1));
         }
         
         document.addEventListener('DOMContentLoaded', () => {
-            initializePage();
+            loadNotebooks();
             setupEventListeners();
         });
     </script>
 </body>
 </html>
-

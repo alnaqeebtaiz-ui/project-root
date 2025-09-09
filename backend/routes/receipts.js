@@ -6,8 +6,9 @@ const router = express.Router();
 const Receipt = require('../models/Receipt');
 const Collector = require('../models/Collector');
 const Subscriber = require('../models/Subscriber');
+const mongoose = require('mongoose');
 
-// --- دالة تحويل Excel إلى JS Date ---
+// --- دالة تحويل Excel إلى JS Date (تبقى كما هي) ---
 function excelDateToJSDate(serial) {
     const utc_days = Math.floor(serial - 25569);
     const utc_value = utc_days * 86400; // ثواني
@@ -30,20 +31,71 @@ function excelDateToJSDate(serial) {
     return date_info;
 }
 
-// --- المسار 1: جلب جميع السندات ---
+// --- المسار 1: جلب السندات (تم تعديله بالكامل لدعم الترقيم والفلاتر المتقدمة) ---
 router.get('/', async (req, res) => {
     try {
-        const receipts = await Receipt.find()
+        const page = parseInt(req.query.page) || 1;
+        const limit = parseInt(req.query.limit) === 0 ? 0 : (parseInt(req.query.limit) || 50);
+
+        // --- بناء شروط البحث بناءً على الفلاتر الجديدة ---
+        const queryConditions = {};
+        
+        // فلتر التاريخ (من - إلى) مع تصحيح تاريخ النهاية
+        if (req.query.startDate && req.query.endDate) {
+            const startDate = new Date(req.query.startDate);
+            const endDate = new Date(req.query.endDate);
+            // !! تعديل مهم: اجعل تاريخ النهاية يشمل اليوم بأكمله !!
+            endDate.setUTCHours(23, 59, 59, 999); 
+            
+            queryConditions.date = {
+                $gte: startDate,
+                $lte: endDate
+            };
+        }
+        
+        // فلتر رقم السند (من - إلى)
+        if (req.query.startReceipt && req.query.endReceipt) {
+            queryConditions.receiptNumber = {
+                $gte: parseInt(req.query.startReceipt),
+                $lte: parseInt(req.query.endReceipt)
+            };
+        }
+        
+        // فلتر المحصل (إذا تم إرسال collectorId)
+        if (req.query.collectorId) {
+            if (mongoose.Types.ObjectId.isValid(req.query.collectorId)) {
+                queryConditions.collector = req.query.collectorId;
+            }
+        }
+        // --- نهاية بناء شروط البحث ---
+
+        const totalReceipts = await Receipt.countDocuments(queryConditions);
+
+        let query = Receipt.find(queryConditions)
             .populate('collector', 'name collectorCode')
             .populate('subscriber', 'name')
             .sort({ date: -1, receiptNumber: -1 });
-        res.json(receipts);
+
+        if (limit !== 0) {
+            query = query.skip((page - 1) * limit).limit(limit);
+        }
+
+        const receipts = await query;
+
+        res.json({
+            receipts,
+            currentPage: page,
+            totalPages: limit === 0 ? 1 : Math.ceil(totalReceipts / limit),
+            totalReceipts
+        });
+
     } catch (err) {
+        console.error("Error fetching receipts:", err);
         res.status(500).json({ message: 'حدث خطأ في الخادم' });
     }
 });
 
-// --- المسار 2: استيراد كشف تحصيل دفعة واحدة مع منع التكرار ---
+// --- المسار 2: استيراد كشف تحصيل دفعة واحدة (يبقى كما هو بدون تغيير) ---
 router.post('/batch', async (req, res) => {
     const rows = req.body;
     if (!Array.isArray(rows) || rows.length === 0) {
@@ -58,7 +110,6 @@ router.post('/batch', async (req, res) => {
         const collectorMap = new Map(existingCollectors.map(c => [c.collectorCode, c._id]));
         let subscriberMap = new Map(existingSubscribers.map(s => [s.name, s._id]));
 
-        // إنشاء المشتركين الجدد
         const newSubscribersToCreate = subscriberNames.filter(name => !subscriberMap.has(name));
         if (newSubscribersToCreate.length > 0) {
             const createdSubscribers = await Subscriber.insertMany(
@@ -67,7 +118,6 @@ router.post('/batch', async (req, res) => {
             createdSubscribers.forEach(s => subscriberMap.set(s.name, s._id));
         }
 
-        // التحقق من التكرار
         const receiptNumbers = rows.map(r => r.receiptNumber);
         const potentialCollectorIds = [...collectorMap.values()];
         const existingReceipts = await Receipt.find({
@@ -99,14 +149,11 @@ router.post('/batch', async (req, res) => {
                 continue;
             }
 
-            // تحويل التاريخ من Excel أو نص
             let receiptDate = (typeof row.date === 'number') 
                 ? excelDateToJSDate(row.date) 
                 : new Date(row.date);
 
-            // إضافة يوم واحد لتصحيح الفارق
             receiptDate.setDate(receiptDate.getDate() + 1);
-            // ضبط منتصف الليل
             receiptDate.setHours(0, 0, 0, 0);
 
             receiptsToCreate.push({
@@ -136,7 +183,7 @@ router.post('/batch', async (req, res) => {
     }
 });
 
-// --- المسار 3: إضافة سند يدوي ---
+// --- المسار 3: إضافة سند يدوي (يبقى كما هو بدون تغيير) ---
 router.post('/', async (req, res) => {
     const receipt = new Receipt({
         receiptNumber: req.body.receiptNumber,
@@ -154,7 +201,7 @@ router.post('/', async (req, res) => {
     }
 });
 
-// --- المسار 4: تحديث سند ---
+// --- المسار 4: تحديث سند (يبقى كما هو بدون تغيير) ---
 router.patch('/:id', async (req, res) => {
     try {
         const updatedReceipt = await Receipt.findByIdAndUpdate(
@@ -169,7 +216,7 @@ router.patch('/:id', async (req, res) => {
     }
 });
 
-// --- المسار 5: حذف سند ---
+// --- المسار 5: حذف سند (يبقى كما هو بدون تغيير) ---
 router.delete('/:id', async (req, res) => {
     try {
         const deletedReceipt = await Receipt.findByIdAndDelete(req.params.id);

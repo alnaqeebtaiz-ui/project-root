@@ -16,6 +16,20 @@
             display: flex; flex-wrap: wrap; gap: 15px; align-items: flex-end;
         }
         .action-bar .form-group { margin-bottom: 0; }
+        .pagination-controls {
+            display: flex; justify-content: center; align-items: center;
+            margin-top: 20px; gap: 15px;
+        }
+        .pagination-controls button { cursor: pointer; }
+        #pageInfo { font-weight: bold; }
+        .autocomplete-container { position: relative; }
+        .autocomplete-results {
+            position: absolute; top: 100%; left: 0; right: 0;
+            background: white; border: 1px solid #ccc;
+            max-height: 200px; overflow-y: auto; z-index: 1000;
+        }
+        .autocomplete-item { padding: 8px 12px; cursor: pointer; }
+        .autocomplete-item:hover { background-color: #f1f1f1; }
     </style>
 </head>
 <body>
@@ -32,22 +46,24 @@
 
         <main class="page-content">
             <div class="container">
-                
                 <div class="action-bar-container">
                     <div class="action-bar">
                         <button id="addDepositBtn" class="btn btn-primary">إضافة توريد جديد</button>
                         <div class="form-group">
-                            <label for="dateFromFilter">من تاريخ:</label>
-                            <input type="date" id="dateFromFilter" class="search-input" style="padding: 8px;">
+                            <label for="startDateFilter">من تاريخ:</label>
+                            <input type="date" id="startDateFilter" class="form-control">
                         </div>
                         <div class="form-group">
-                            <label for="dateToFilter">إلى تاريخ:</label>
-                            <input type="date" id="dateToFilter" class="search-input" style="padding: 8px;">
+                            <label for="endDateFilter">إلى تاريخ:</label>
+                            <input type="date" id="endDateFilter" class="form-control">
                         </div>
-                        <div class="form-group">
+                        <div class="form-group autocomplete-container">
                             <label for="collectorFilter">المحصل:</label>
-                            <input type="text" id="collectorFilter" placeholder="اسم أو كود..." class="search-input">
+                            <input type="text" id="collectorFilter" placeholder="ابحث عن محصل..." class="form-control" autocomplete="off">
+                            <input type="hidden" id="collectorIdFilter">
+                            <div id="collectorResults" class="autocomplete-results" style="display: none;"></div>
                         </div>
+                        <button id="filterBtn" class="btn btn-primary">بحث</button>
                         <button id="exportExcelBtn" class="btn btn-secondary">تصدير Excel</button>
                     </div>
                 </div>
@@ -64,16 +80,19 @@
                                 <th style="text-align: center;">الإجراءات</th>
                             </tr>
                         </thead>
-                        <tbody id="depositsTableBody">
-                             <tr><td colspan="6" style="text-align: center; padding: 2rem;">جاري تحميل البيانات...</td></tr>
-                        </tbody>
+                        <tbody id="depositsTableBody"></tbody>
                     </table>
+                </div>
+
+                <div class="pagination-controls" id="paginationControls" style="display: none;">
+                    <button id="nextPageBtn" class="btn btn-default">&laquo; التالي</button>
+                    <span id="pageInfo"></span>
+                    <button id="prevPageBtn" class="btn btn-default">السابق &raquo;</button>
                 </div>
             </div>
         </main>
     </div>
     
-    <!-- =========== Add/Edit Deposit Modal =========== -->
     <div id="depositModal" class="modal">
         <div class="modal-content">
             <header class="modal-header">
@@ -83,23 +102,23 @@
             <form id="depositForm">
                 <div class="modal-body">
                     <input type="hidden" id="depositId">
-                    <div class="form-group">
-                        <label for="modalCollector">المحصل:</label>
-                        <select id="modalCollector" required>
-                            <option value="">جاري تحميل المحصلين...</option>
-                        </select>
+                    <div class="form-group autocomplete-container">
+                        <label for="modalCollectorInput">المحصل:</label>
+                        <input type="text" id="modalCollectorInput" placeholder="ابحث عن محصل..." class="form-control" autocomplete="off" required>
+                        <input type="hidden" id="modalCollectorId">
+                        <div id="modalCollectorResults" class="autocomplete-results" style="display: none;"></div>
                     </div>
                     <div class="form-group">
                         <label for="modalAmount">المبلغ المورّد:</label>
-                        <input type="number" id="modalAmount" step="any" required>
+                        <input type="number" id="modalAmount" step="any" required class="form-control">
                     </div>
                     <div class="form-group">
                         <label for="modalDate">تاريخ التوريد:</label>
-                        <input type="date" id="modalDate" required>
+                        <input type="date" id="modalDate" required class="form-control">
                     </div>
                     <div class="form-group">
-                        <label for="modalReference">رقم سند التوريد (اختياري):</label>
-                        <input type="text" id="modalReference">
+                        <label for="modalReference">رقم سند التوريد:</label>
+                        <input type="text" id="modalReference" class="form-control">
                     </div>
                 </div>
                 <footer class="modal-footer">
@@ -110,18 +129,16 @@
         </div>
     </div>
 
-    <!-- =========== Delete Confirmation Modal =========== -->
     <div id="deleteConfirmationModal" class="modal">
         <div class="modal-content" style="max-width: 400px;">
-             <header class="modal-header"><h2>تأكيد الحذف</h2></header>
-             <div class="modal-body" style="text-align: center;"><p>هل أنت متأكد من حذف سجل التوريد هذا؟</p></div>
-             <footer class="modal-footer">
-                 <button type="button" id="cancelDeleteBtn" class="btn btn-secondary">إلغاء</button>
-                 <button type="button" id="confirmDeleteBtn" class="btn btn-danger">نعم, حذف</button>
-             </footer>
+            <header class="modal-header"><h2>تأكيد الحذف</h2></header>
+            <div class="modal-body" style="text-align: center;"><p>هل أنت متأكد من حذف سجل التوريد هذا؟</p></div>
+            <footer class="modal-footer">
+                <button type="button" id="cancelDeleteBtn" class="btn btn-secondary">إلغاء</button>
+                <button type="button" id="confirmDeleteBtn" class="btn btn-danger">نعم, حذف</button>
+            </footer>
         </div>
     </div>
-    
     <div id="toast" class="toast-notification"><p id="toastMessage"></p></div>
 
     <script type="module">
@@ -129,208 +146,272 @@
         import { getCollectors } from './assets/js/collectors-service.js';
         import { showToast, sanitizeInput, formatCurrency } from './assets/js/utils.js';
 
-        // --- Global State ---
-        let allDeposits = [], filteredDeposits = [], allCollectors = [];
-        let isEditMode = false, depositIdToProcess = null;
-        let areDropdownsPopulated = false;
+        document.addEventListener('DOMContentLoaded', () => {
+            // --- Global State ---
+            let currentPage = 1, currentFilters = {}, allCollectors = [];
+            let depositIdToDelete = null;
+            const PAGE_LIMIT = 50;
 
-        // --- DOM Elements ---
-        const tableBody = document.getElementById('depositsTableBody');
-        const filters = {
-            dateFrom: document.getElementById('dateFromFilter'),
-            dateTo: document.getElementById('dateToFilter'),
-            collector: document.getElementById('collectorFilter')
-        };
-        const depositModal = document.getElementById('depositModal');
-        const deleteModal = document.getElementById('deleteConfirmationModal');
-        const depositForm = document.getElementById('depositForm');
-        
-        function formatISODate(iso) { return iso ? iso.split('T')[0] : ''; }
+            // --- DOM Elements (FIXED: Defined inside DOMContentLoaded) ---
+            const tableBody = document.getElementById('depositsTableBody');
+            const filterBtn = document.getElementById('filterBtn');
+            const paginationControls = document.getElementById('paginationControls');
+            const pageInfo = document.getElementById('pageInfo');
+            const prevPageBtn = document.getElementById('prevPageBtn');
+            const nextPageBtn = document.getElementById('nextPageBtn');
+            const depositModal = document.getElementById('depositModal');
+            const deleteModal = document.getElementById('deleteConfirmationModal');
+            const depositForm = document.getElementById('depositForm');
+            // Autocomplete Elements
+            const collectorFilterInput = document.getElementById('collectorFilter');
+            const collectorIdInput = document.getElementById('collectorIdFilter');
+            const collectorResultsDiv = document.getElementById('collectorResults');
+            const modalCollectorInput = document.getElementById('modalCollectorInput');
+            const modalCollectorIdInput = document.getElementById('modalCollectorId');
+            const modalCollectorResultsDiv = document.getElementById('modalCollectorResults');
+            
+            function formatISODate(iso) { return iso ? iso.split('T')[0] : ''; }
 
-        async function initializePage() {
-            tableBody.innerHTML = `<tr><td colspan="6" style="text-align: center; padding: 2rem;">جاري تحميل البيانات...</td></tr>`;
-            try {
-                allDeposits = await depositService.getDeposits();
-                applyFilters();
-            } catch (error) {
-                 tableBody.innerHTML = `<tr><td colspan="6" style="text-align: center; color: red;">فشل تحميل البيانات.</td></tr>`;
-            }
-        }
-
-        function displayDeposits(deposits) {
-            tableBody.innerHTML = '';
-            if (deposits.length === 0) {
-                tableBody.innerHTML = `<tr><td colspan="6" style="text-align: center; padding: 2rem;">لا توجد سجلات توريد تطابق البحث.</td></tr>`;
-                return;
-            }
-            deposits.forEach((d, index) => {
-                const row = document.createElement('tr');
-                const colName = d.collector?.name ? sanitizeInput(d.collector.name) : '<span class="status-error">غير مرتبط</span>';
-                row.innerHTML = `
-                    <td>${index + 1}</td>
-                    <td title="${colName}">${colName}</td>
-                    <td>${formatCurrency(d.amount || 0)}</td>
-                    <td>${formatISODate(d.depositDate)}</td>
-                    <td>${sanitizeInput(d.referenceNumber || '')}</td>
-                    <td><div class="actions-cell">
-                        <button class="btn btn-warning" data-id="${d._id}" data-action="edit">تعديل</button>
-                        <button class="btn btn-danger" data-id="${d._id}" data-action="delete">حذف</button>
-                    </div></td>
-                `;
-                tableBody.appendChild(row);
-            });
-        }
-        
-        function applyFilters() {
-            const dateFromValue = filters.dateFrom.value;
-            const dateToValue = filters.dateTo.value;
-            const collectorValue = filters.collector.value.toLowerCase();
-
-            filteredDeposits = allDeposits.filter(d => {
-                const depositDate = formatISODate(d.depositDate);
-                const collectorName = (d.collector?.name || '').toLowerCase();
-                const collectorCode = (d.collector?.collectorCode || '').toLowerCase();
-
-                // التحقق من نطاق التاريخ
-                const dateMatch = (!dateFromValue || depositDate >= dateFromValue) && 
-                                (!dateToValue || depositDate <= dateToValue);
-
-                const collectorMatch = !collectorValue || collectorName.includes(collectorValue) || collectorCode.includes(collectorValue);
-
-                return dateMatch && collectorMatch;
-            });
-            displayDeposits(filteredDeposits);
-
-        }
-
-        async function prepareAndOpenModal(deposit = null) {
-            const actionButton = deposit ? document.querySelector(`button[data-id="${deposit._id}"]`) : document.getElementById('addDepositBtn');
-            actionButton.disabled = true;
-            showToast('جاري تجهيز النافذة...', 'success');
-
-            if (!areDropdownsPopulated) {
+            async function initializePage() {
                 try {
                     allCollectors = await getCollectors();
-                    populateDropdowns();
-                    areDropdownsPopulated = true;
                 } catch (error) {
-                    showToast('فشل تحميل بيانات المحصلين.', 'error');
-                    actionButton.disabled = false;
+                    showToast('فشل تحميل قائمة المحصلين', 'error');
+                }
+                await loadDeposits();
+            }
+
+            async function loadDeposits(page = 1, filters = {}) {
+                tableBody.innerHTML = `<tr><td colspan="6" style="text-align: center; padding: 2rem;">جاري تحميل البيانات...</td></tr>`;
+                paginationControls.style.display = 'none';
+                currentPage = page;
+                currentFilters = filters;
+                try {
+                    const params = new URLSearchParams({ page, limit: PAGE_LIMIT, ...filters });
+                    const response = await fetch(`http://localhost:3000/api/deposits?${params.toString()}`);
+                    if (!response.ok) throw new Error('فشل في جلب البيانات من الخادم');
+                    const data = await response.json();
+                    displayDeposits(data.deposits);
+                    updatePaginationControls(data);
+                } catch (error) {
+                    tableBody.innerHTML = `<tr><td colspan="6" style="text-align: center; color: red;">${error.message}</td></tr>`;
+                }
+            }
+
+            function displayDeposits(deposits) {
+                tableBody.innerHTML = '';
+                if (deposits.length === 0) {
+                    tableBody.innerHTML = `<tr><td colspan="6" style="text-align: center; padding: 2rem;">لا توجد سجلات توريد تطابق البحث.</td></tr>`;
                     return;
+                }
+                deposits.forEach((d, index) => {
+                    const row = document.createElement('tr');
+                    const rowNumber = (currentPage - 1) * PAGE_LIMIT + index + 1;
+                    const colName = d.collector?.name ? sanitizeInput(d.collector.name) : '<span class="status-error">غير مرتبط</span>';
+                    row.innerHTML = `
+                        <td>${rowNumber}</td>
+                        <td title="${colName}">${colName}</td>
+                        <td>${formatCurrency(d.amount || 0)}</td>
+                        <td>${formatISODate(d.depositDate)}</td>
+                        <td>${sanitizeInput(d.referenceNumber || '')}</td>
+                        <td><div class="actions-cell">
+                            <button class="btn btn-warning" data-id="${d._id}" data-action="edit">تعديل</button>
+                            <button class="btn btn-danger" data-id="${d._id}" data-action="delete">حذف</button>
+                        </div></td>
+                    `;
+                    tableBody.appendChild(row);
+                });
+            }
+            
+            function updatePaginationControls({ currentPage, totalPages, totalDeposits }) {
+                if (totalPages > 0) {
+                    pageInfo.textContent = `الصفحة ${currentPage} من ${totalPages} (إجمالي ${totalDeposits} سجل)`;
+                    prevPageBtn.disabled = currentPage <= 1;
+                    nextPageBtn.disabled = currentPage >= totalPages;
+                    paginationControls.style.display = 'flex';
+                } else {
+                    paginationControls.style.display = 'none';
                 }
             }
             
-            depositForm.reset();
-            isEditMode = !!deposit;
-            document.getElementById('modalTitle').textContent = isEditMode ? 'تعديل سجل توريد' : 'إضافة توريد جديد';
-            if (isEditMode) {
-                document.getElementById('depositId').value = deposit._id;
-                document.getElementById('modalCollector').value = deposit.collector?._id || '';
-                document.getElementById('modalAmount').value = deposit.amount;
-                document.getElementById('modalDate').value = formatISODate(deposit.depositDate);
-                document.getElementById('modalReference').value = deposit.referenceNumber;
+            function handleFilter() {
+                const filters = {
+                    startDate: document.getElementById('startDateFilter').value,
+                    endDate: document.getElementById('endDateFilter').value,
+                    collectorId: document.getElementById('collectorIdFilter').value,
+                };
+                Object.keys(filters).forEach(key => { if (!filters[key]) delete filters[key]; });
+                loadDeposits(1, filters);
             }
-            actionButton.disabled = false;
-            depositModal.classList.add('show');
-        }
 
-        function populateDropdowns() {
-            const collectorSelect = document.getElementById('modalCollector');
-            collectorSelect.innerHTML = '<option value="">اختر محصل...</option>';
-            allCollectors.forEach(c => collectorSelect.innerHTML += `<option value="${c._id}">${c.name} (${c.collectorCode})</option>`);
-        }
-        
-        function closeDepositModal() { depositModal.classList.remove('show'); }
-        function openDeleteModal(id) { depositIdToProcess = id; deleteModal.classList.add('show'); }
-        function closeDeleteModal() { deleteModal.classList.remove('show'); depositIdToProcess = null; }
-
-        async function handleFormSubmit(event) {
-            event.preventDefault();
-            const saveBtn = event.target.querySelector('button[type="submit"]');
-            saveBtn.disabled = true;
-            const depositId = document.getElementById('depositId').value;
-            const data = {
-                collector: document.getElementById('modalCollector').value,
-                amount: document.getElementById('modalAmount').value,
-                depositDate: document.getElementById('modalDate').value,
-                referenceNumber: document.getElementById('modalReference').value
-            };
-            try {
-                if (isEditMode) {
-                    await depositService.updateDeposit(depositId, data);
-                    showToast('تم تحديث السجل بنجاح', 'success');
-                } else {
-                    await depositService.addDeposit(data);
-                    showToast('تمت إضافة سجل التوريد بنجاح', 'success');
+            async function handleExportClick() {
+                const btn = document.getElementById('exportExcelBtn');
+                btn.disabled = true;
+                btn.textContent = 'جاري التصدير...';
+                try {
+                    const params = new URLSearchParams({ limit: 0, ...currentFilters });
+                    const response = await fetch(`http://localhost:3000/api/deposits?${params.toString()}`);
+                    if (!response.ok) throw new Error('فشل تحميل بيانات التصدير');
+                    const data = await response.json();
+                    if (data.deposits.length === 0) {
+                        showToast('لا توجد بيانات لتصديرها.', 'warning'); return;
+                    }
+                    const totalAmount = data.deposits.reduce((sum, d) => sum + (d.amount || 0), 0);
+                    const dataToExport = data.deposits.map(d => ({
+                        'اسم المحصل': d.collector?.name || '', 'كود المحصل': d.collector?.collectorCode || '',
+                        'المبلغ المورّد': d.amount, 'تاريخ التوريد': formatISODate(d.depositDate), 'رقم السند': d.referenceNumber || ''
+                    }));
+                    const ws = XLSX.utils.json_to_sheet(dataToExport);
+                    XLSX.utils.sheet_add_aoa(ws, [['', 'الإجمالي', totalAmount]], { origin: -1 });
+                    const wb = XLSX.utils.book_new();
+                    XLSX.utils.book_append_sheet(wb, ws, "سجلات التوريد");
+                    XLSX.writeFile(wb, "Deposits_Export.xlsx");
+                } catch (error) {
+                    showToast(error.message, 'error');
+                } finally {
+                    btn.disabled = false; btn.textContent = 'تصدير Excel';
                 }
-                closeDepositModal();
-                initializePage();
-            } catch (error) {
-                showToast(error.message || 'حدث خطأ.', 'error');
-            } finally {
-                saveBtn.disabled = false;
             }
-        }
-
-        async function confirmDelete() {
-            if (!depositIdToProcess) return;
-            try {
-                await depositService.deleteDeposit(depositIdToProcess);
-                showToast('تم حذف السجل بنجاح.', 'success');
-                initializePage();
-            } catch (error) {
-                showToast('فشل حذف السجل.', 'error');
-            } finally {
-                closeDeleteModal();
+            
+            function setupAutocomplete(inputEl, hiddenInputEl, resultsEl) {
+                inputEl.addEventListener('keyup', () => {
+                    const term = inputEl.value.toLowerCase();
+                    if (!term) {
+                        resultsEl.style.display = 'none';
+                        hiddenInputEl.value = '';
+                        return;
+                    }
+                    const results = allCollectors.filter(c => c.name.toLowerCase().includes(term) || c.collectorCode.toLowerCase().includes(term));
+                    resultsEl.innerHTML = '';
+                    results.slice(0, 7).forEach(collector => {
+                        const item = document.createElement('div');
+                        item.className = 'autocomplete-item';
+                        item.textContent = `${collector.name} (${collector.collectorCode})`;
+                        item.dataset.id = collector._id;
+                        resultsEl.appendChild(item);
+                    });
+                    resultsEl.style.display = 'block';
+                });
+                resultsEl.addEventListener('click', (e) => {
+                    const item = e.target.closest('.autocomplete-item');
+                    if (item) {
+                        inputEl.value = item.textContent;
+                        hiddenInputEl.value = item.dataset.id;
+                        resultsEl.style.display = 'none';
+                    }
+                });
             }
-        }
+            
+            async function prepareAndOpenModal(deposit = null) {
+                depositForm.reset();
+                const isEditMode = !!deposit;
+                document.getElementById('modalTitle').textContent = isEditMode ? 'تعديل سجل توريد' : 'إضافة توريد جديد';
+                
+                if (isEditMode) {
+                    document.getElementById('depositId').value = deposit._id;
+                    modalCollectorInput.value = deposit.collector ? `${deposit.collector.name} (${deposit.collector.collectorCode})` : '';
+                    modalCollectorIdInput.value = deposit.collector?._id || '';
+                    document.getElementById('modalAmount').value = deposit.amount;
+                    document.getElementById('modalDate').value = formatISODate(deposit.depositDate);
+                    document.getElementById('modalReference').value = deposit.referenceNumber;
+                } else {
+                    modalCollectorIdInput.value = '';
+                }
+                depositModal.classList.add('show');
+            }
 
-        function handleExportClick() {
-            if (filteredDeposits.length === 0) return showToast('لا توجد بيانات لتصديرها.', 'warning');
+            async function handleFormSubmit(event) {
+                event.preventDefault();
+                const saveBtn = event.target.querySelector('button[type="submit"]');
+                saveBtn.disabled = true;
+                const depositId = document.getElementById('depositId').value;
+                const isEditMode = !!depositId;
 
-            // حساب الإجمالي أولاً
-            const totalAmount = filteredDeposits.reduce((sum, d) => sum + (d.amount || 0), 0);
-
-            const dataToExport = filteredDeposits.map(d => ({
-                'اسم المحصل': d.collector?.name || '',
-                'كود المحصل': d.collector?.collectorCode || '',
-                'المبلغ المورّد': d.amount,
-                'تاريخ التوريد': formatISODate(d.depositDate),
-                'رقم السند': d.referenceNumber || ''
-            }));
-
-            const ws = XLSX.utils.json_to_sheet(dataToExport);
-
-            // إضافة صف الإجمالي في نهاية الجدول
-            XLSX.utils.sheet_add_aoa(ws, [
-                ['', 'الإجمالي', totalAmount] // [A], [B], [C]...
-            ], { origin: -1 }); // origin: -1 تعني الإضافة في النهاية
-
-            const wb = XLSX.utils.book_new();
-            XLSX.utils.book_append_sheet(wb, ws, "سجلات التوريد");
-            XLSX.writeFile(wb, "Deposits_Export.xlsx");
-        }
-        
-        function setupEventListeners() {
-            Object.values(filters).forEach(el => el.addEventListener('input', applyFilters));
+                const data = {
+                    collector: document.getElementById('modalCollectorId').value,
+                    amount: document.getElementById('modalAmount').value,
+                    depositDate: document.getElementById('modalDate').value,
+                    referenceNumber: document.getElementById('modalReference').value
+                };
+                try {
+                    if (isEditMode) {
+                        await depositService.updateDeposit(depositId, data);
+                        showToast('تم تحديث السجل بنجاح', 'success');
+                    } else {
+                        await depositService.addDeposit(data);
+                        showToast('تمت إضافة سجل التوريد بنجاح', 'success');
+                    }
+                    depositModal.classList.remove('show');
+                    loadDeposits(isEditMode ? currentPage : 1, currentFilters);
+                } catch (error) {
+                    showToast(error.message || 'حدث خطأ.', 'error');
+                } finally {
+                    saveBtn.disabled = false;
+                }
+            }
+            
+            function openDeleteModal(id) {
+                depositIdToDelete = id;
+                deleteModal.classList.add('show');
+            }
+            function closeDeleteModal() {
+                depositIdToDelete = null;
+                deleteModal.classList.remove('show');
+            }
+            async function confirmDelete() {
+                if (!depositIdToDelete) return;
+                try {
+                    await depositService.deleteDeposit(depositIdToDelete);
+                    showToast('تم حذف السجل بنجاح.', 'success');
+                    loadDeposits(1, currentFilters); 
+                } catch (error) {
+                    showToast(error.message || 'فشل حذف السجل.', 'error');
+                } finally {
+                    closeDeleteModal();
+                }
+            }
+            
+            filterBtn.addEventListener('click', handleFilter);
             document.getElementById('addDepositBtn').addEventListener('click', () => prepareAndOpenModal());
             document.getElementById('exportExcelBtn').addEventListener('click', handleExportClick);
-            depositModal.querySelectorAll('.close-btn').forEach(btn => btn.addEventListener('click', closeDepositModal));
+            depositModal.querySelectorAll('.close-btn').forEach(btn => btn.addEventListener('click', () => depositModal.classList.remove('show')));
             depositForm.addEventListener('submit', handleFormSubmit);
-            tableBody.addEventListener('click', (event) => {
+
+            tableBody.addEventListener('click', async (event) => {
                 const button = event.target.closest('button[data-action]');
                 if (!button) return;
                 const id = button.dataset.id;
-                if (button.dataset.action === 'edit') prepareAndOpenModal(allDeposits.find(d => d._id === id));
-                if (button.dataset.action === 'delete') openDeleteModal(id);
+                if (button.dataset.action === 'edit') {
+                    try {
+                        const deposit = await depositService.getDepositById(id);
+                        prepareAndOpenModal(deposit);
+                    } catch(error) {
+                        showToast('لا يمكن العثور على السجل.', 'error');
+                    }
+                }
+                if (button.dataset.action === 'delete') {
+                    openDeleteModal(id);
+                }
             });
+            
             document.getElementById('cancelDeleteBtn').addEventListener('click', closeDeleteModal);
             document.getElementById('confirmDeleteBtn').addEventListener('click', confirmDelete);
-        }
+            
+            setupAutocomplete(collectorFilterInput, collectorIdInput, collectorResultsDiv);
+            setupAutocomplete(modalCollectorInput, modalCollectorIdInput, modalCollectorResultsDiv);
+            
+            document.addEventListener('click', (e) => {
+                if (!e.target.closest('.autocomplete-container')) {
+                    collectorResultsDiv.style.display = 'none';
+                    modalCollectorResultsDiv.style.display = 'none';
+                }
+            });
 
-        document.addEventListener('DOMContentLoaded', () => {
+            prevPageBtn.addEventListener('click', () => loadDeposits(currentPage - 1, currentFilters));
+            nextPageBtn.addEventListener('click', () => loadDeposits(currentPage + 1, currentFilters));
+
+            // --- Entry Point ---
             initializePage();
-            setupEventListeners();
         });
     </script>
 </body>

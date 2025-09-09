@@ -19,7 +19,8 @@ const MissingReceiptSchema = new mongoose.Schema({
 const NotebookSchema = new mongoose.Schema({
     collectorId: {
         type: mongoose.Schema.Types.ObjectId,
-        ref: 'collector',
+        // --- تم التصحيح هنا ---
+        ref: 'Collector', 
         default: null
     },
     collectorName: {
@@ -28,8 +29,8 @@ const NotebookSchema = new mongoose.Schema({
     },
     startNumber: {
         type: Number,
-        required: true,
-        unique: true
+        required: true
+        // unique: true // من الأفضل إزالة unique من هنا إذا كان يمكن لنفس الدفتر أن يتكرر مع محصلين مختلفين
     },
     endNumber: {
         type: Number,
@@ -44,8 +45,6 @@ const NotebookSchema = new mongoose.Schema({
     pendingReceipts: [{
         type: Number
     }],
-
-    // --- إضافة جديدة: لتحديد النطاق الفعلي المستخدم داخل الدفتر ---
     minUsedInNotebook: {
         type: Number,
         default: null
@@ -59,5 +58,5 @@ const NotebookSchema = new mongoose.Schema({
     timestamps: true
 });
 
-module.exports = mongoose.model('notebook', NotebookSchema);
-
+// --- وتم التصحيح هنا أيضًا ---
+module.exports = mongoose.model('Notebook', NotebookSchema);

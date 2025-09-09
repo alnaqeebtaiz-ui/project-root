@@ -114,3 +114,23 @@ export async function deleteCollector(collectorId) {
     }
 }
 
+// --- الإضافة الجديدة والمهمة تبدأ هنا ---
+/**
+ * البحث عن محصلين بالاسم أو الكود.
+ * @param {string} query - مصطلح البحث.
+ * @returns {Promise<Array>} - مصفوفة من المحصلين المطابقين.
+ */
+export async function searchCollectors(query) {
+    try {
+        // نستخدم encodeURIComponent لضمان أن مصطلح البحث آمن للإرسال في الرابط
+        const response = await fetch(`${API_URL}/search?q=${encodeURIComponent(query)}`);
+        if (!response.ok) {
+            throw new Error('فشل في البحث عن المحصلين.');
+        }
+        return await response.json();
+    } catch (error) {
+        console.error("Error searching collectors:", error);
+        return [];
+    }
+}
+// --- الإضافة الجديدة تنتهي هنا ---

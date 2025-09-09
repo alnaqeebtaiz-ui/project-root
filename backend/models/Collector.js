@@ -1,14 +1,15 @@
 // استيراد مكتبة Mongoose للتعامل مع MongoDB
 const mongoose = require('mongoose');
+const { Schema } = mongoose; // --- هذا هو السطر الذي كان مفقودًا ---
 
 // تعريف "هيكل" أو "شكل" بيانات المحصل
-const collectorSchema = new mongoose.Schema({
+const collectorSchema = new Schema({
     // حقل كود المحصل
     collectorCode: {
-        type: String, // نوع البيانات: نص
-        required: true, // هذا الحقل إجباري
-        unique: true, // يجب أن يكون هذا الكود فريدًا ولا يتكرر
-        trim: true // لإزالة أي مسافات فارغة
+        type: String,
+        required: true,
+        unique: true,
+        trim: true
     },
     // حقل اسم المحصل
     name: {
@@ -18,9 +19,15 @@ const collectorSchema = new mongoose.Schema({
     },
     // حقل الرصيد الافتتاحي
     openingBalance: {
-        type: Number, // نوع البيانات: رقم
+        type: Number,
         required: true,
-        default: 0 // القيمة الافتراضية هي صفر
+        default: 0
+    },
+    // حقل لربط المحصل بالصندوق الذي يتبعه
+    fund: {
+        type: Schema.Types.ObjectId, // الآن سيعرف الكود ما هي "Schema"
+        ref: 'Fund',
+        required: false
     },
     // حقل تاريخ الإنشاء
     createdAt: {
@@ -31,3 +38,4 @@ const collectorSchema = new mongoose.Schema({
 
 // إنشاء وتصدير النموذج بناءً على الهيكل الذي عرفناه
 module.exports = mongoose.model('Collector', collectorSchema);
+

@@ -21,6 +21,24 @@
             display: flex; flex-wrap: wrap; gap: 15px; align-items: flex-end;
         }
         .action-bar .form-group { margin-bottom: 0; }
+        
+        .pagination-controls {
+            display: flex; justify-content: center; align-items: center;
+            margin-top: 20px; gap: 15px;
+        }
+        .pagination-controls button { cursor: pointer; }
+        #pageInfo { font-weight: bold; }
+
+        .autocomplete-container { position: relative; }
+        .autocomplete-results {
+            position: absolute; top: 100%; left: 0; right: 0;
+            background: white; border: 1px solid #ccc;
+            max-height: 200px; overflow-y: auto; z-index: 1000;
+        }
+        .autocomplete-item {
+            padding: 8px 12px; cursor: pointer;
+        }
+        .autocomplete-item:hover { background-color: #f1f1f1; }
     </style>
 </head>
 <body>
@@ -39,23 +57,35 @@
             <div class="container">
                 
                 <div class="action-bar-container">
-                    <div class="action-bar">
-                        <button id="importReceiptsBtn" class="btn btn-success">استيراد من Excel</button>
+                   <div class="action-bar">
+                        <button id="importReceiptsBtn" class="btn btn-success">استيراد</button>
                         <input type="file" id="excelFileInput" accept=".xlsx,.xls" style="display: none;">
                         
                         <div class="form-group">
-                            <label for="dateFilter">التاريخ:</label>
-                            <input type="date" id="dateFilter" class="search-input" style="padding: 8px;">
+                            <label for="startDateFilter">من تاريخ:</label>
+                            <input type="date" id="startDateFilter" class="form-control">
                         </div>
                         <div class="form-group">
+                            <label for="endDateFilter">إلى تاريخ:</label>
+                            <input type="date" id="endDateFilter" class="form-control">
+                        </div>
+                        <div class="form-group autocomplete-container">
                             <label for="collectorFilter">المحصل:</label>
-                            <input type="text" id="collectorFilter" placeholder="اسم أو كود..." class="search-input">
+                            <input type="text" id="collectorFilter" placeholder="ابحث عن محصل..." class="form-control" autocomplete="off" style="width: 200px;">
+                            <input type="hidden" id="collectorIdFilter">
+                            <div id="collectorResults" class="autocomplete-results" style="display: none;"></div>
                         </div>
                         <div class="form-group">
-                            <label for="receiptNumberFilter">رقم السند:</label>
-                            <input type="number" id="receiptNumberFilter" placeholder="بحث..." class="search-input">
+                            <label for="startReceiptFilter">من سند:</label>
+                            <input type="number" id="startReceiptFilter" placeholder="رقم..." class="form-control" style="width: 100px;">
                         </div>
-                        <button id="exportExcelBtn" class="btn btn-secondary">تصدير Excel</button>
+                        <div class="form-group">
+                            <label for="endReceiptFilter">إلى سند:</label>
+                            <input type="number" id="endReceiptFilter" placeholder="رقم..." class="form-control" style="width: 100px;">
+                        </div>
+                        
+                        <button id="filterBtn" class="btn btn-primary">بحث</button>
+                        <button id="exportExcelBtn" class="btn btn-secondary" title="تصدير Excel" style="font-size: 1.2rem; padding: 8px 15px;">⬇</button>
                     </div>
                 </div>
                 
@@ -63,6 +93,7 @@
                     <table class="data-table">
                         <thead>
                             <tr>
+                                <th>#</th>
                                 <th>رقم السند</th>
                                 <th>المبلغ</th>
                                 <th>اسم المشترك</th>
@@ -72,24 +103,28 @@
                                 <th style="text-align: center;">الإجراءات</th>
                             </tr>
                         </thead>
-                        <tbody id="receiptsTableBody">
-                             <tr><td colspan="7" style="text-align: center; padding: 2rem;">جاري تحميل البيانات...</td></tr>
-                        </tbody>
+                        <tbody id="receiptsTableBody"></tbody>
                     </table>
                 </div>
+
+                <div class="pagination-controls" id="paginationControls" style="display: none;">
+                    <button id="nextPageBtn" class="btn btn-default">&laquo; التالي</button>
+                    <span id="pageInfo"></span>
+                    <button id="prevPageBtn" class="btn btn-default">السابق &raquo;</button>
+                </div>
+
             </div>
         </main>
     </div>
     
-    <!-- =========== Modals =========== -->
     <div id="deleteConfirmationModal" class="modal">
         <div class="modal-content" style="max-width: 400px;">
-             <header class="modal-header"><h2>تأكيد الحذف</h2></header>
-             <div class="modal-body" style="text-align: center;"><p>هل أنت متأكد من حذف هذا السند؟</p></div>
-             <footer class="modal-footer">
-                 <button type="button" id="cancelDeleteBtn" class="btn btn-secondary">إلغاء</button>
-                 <button type="button" id="confirmDeleteBtn" class="btn btn-danger">نعم, حذف</button>
-             </footer>
+            <header class="modal-header"><h2>تأكيد الحذف</h2></header>
+            <div class="modal-body" style="text-align: center;"><p>هل أنت متأكد من حذف هذا السند؟</p></div>
+            <footer class="modal-footer">
+                <button type="button" id="cancelDeleteBtn" class="btn btn-secondary">إلغاء</button>
+                <button type="button" id="confirmDeleteBtn" class="btn btn-danger">نعم, حذف</button>
+            </footer>
         </div>
     </div>
     
@@ -101,45 +136,74 @@
         import { showToast, sanitizeInput, formatCurrency } from './assets/js/utils.js';
 
         // --- Global State ---
-        let allReceipts = [], filteredReceipts = [];
+        let currentPage = 1;
+        let currentFilters = {};
+        let allCollectors = [];
         let receiptIdToDelete = null;
+        const PAGE_LIMIT = 50;
 
         // --- DOM Elements ---
         const tableBody = document.getElementById('receiptsTableBody');
-        const filters = {
-            date: document.getElementById('dateFilter'),
-            collector: document.getElementById('collectorFilter'),
-            receiptNumber: document.getElementById('receiptNumberFilter')
-        };
         const deleteModal = document.getElementById('deleteConfirmationModal');
+        const filterBtn = document.getElementById('filterBtn');
+        const paginationControls = document.getElementById('paginationControls');
+        const pageInfo = document.getElementById('pageInfo');
+        const prevPageBtn = document.getElementById('prevPageBtn');
+        const nextPageBtn = document.getElementById('nextPageBtn');
+        const collectorFilterInput = document.getElementById('collectorFilter');
+        const collectorIdInput = document.getElementById('collectorIdFilter');
+        const collectorResultsDiv = document.getElementById('collectorResults');
         
-        // --- Core Functions ---
         function formatISODate(iso) { return iso ? iso.split('T')[0] : ''; }
 
         async function initializePage() {
-            tableBody.innerHTML = `<tr><td colspan="7" style="text-align: center; padding: 2rem;">جاري تحميل السندات...</td></tr>`;
             try {
-                allReceipts = await receiptService.getReceipts();
-                applyFilters();
+                const response = await fetch('http://localhost:3000/api/collectors');
+                allCollectors = await response.json();
             } catch (error) {
-                 tableBody.innerHTML = `<tr><td colspan="7" style="text-align: center; color: red;">فشل تحميل البيانات. تأكد من أن الخادم يعمل.</td></tr>`;
+                showToast('فشل تحميل قائمة المحصلين', 'error');
+            }
+            await loadReceipts();
+        }
+
+        async function loadReceipts(page = 1, filters = {}) {
+            tableBody.innerHTML = `<tr><td colspan="8" style="text-align: center; padding: 2rem;">جاري تحميل البيانات...</td></tr>`;
+            paginationControls.style.display = 'none';
+            currentPage = page;
+            currentFilters = filters;
+            try {
+                const params = new URLSearchParams({ page, limit: PAGE_LIMIT, ...filters });
+                const response = await fetch(`http://localhost:3000/api/receipts?${params.toString()}`);
+                if (!response.ok) throw new Error('فشل في جلب البيانات من الخادم');
+                
+                const data = await response.json();
+                displayReceipts(data.receipts);
+                updatePaginationControls(data);
+            } catch (error) {
+                tableBody.innerHTML = `<tr><td colspan="8" style="text-align: center; padding: 2rem; color: red;">${error.message}</td></tr>`;
             }
         }
 
         function displayReceipts(receipts) {
             tableBody.innerHTML = '';
             if (receipts.length === 0) {
-                tableBody.innerHTML = `<tr><td colspan="7" style="text-align: center; padding: 2rem;">لا توجد سندات تطابق البحث.</td></tr>`;
+                tableBody.innerHTML = `<tr><td colspan="8" style="text-align: center; padding: 2rem;">لا توجد سندات تطابق البحث.</td></tr>`;
                 return;
             }
-            receipts.forEach(r => {
+            receipts.forEach((r, index) => {
                 const row = document.createElement('tr');
+                const rowNumber = (currentPage - 1) * PAGE_LIMIT + index + 1;
                 const subName = r.subscriber?.name ? sanitizeInput(r.subscriber.name) : '<span class="status-error">غير مرتبط</span>';
                 const colName = r.collector?.name ? sanitizeInput(r.collector.name) : '<span class="status-error">غير مرتبط</span>';
+                
                 row.innerHTML = `
-                    <td>${r.receiptNumber}</td> <td>${formatCurrency(r.amount||0)}</td>
-                    <td title="${r.subscriber?.name||''}">${subName}</td> <td title="${r.collector?.name||''}">${colName}</td>
-                    <td>${formatISODate(r.date)}</td> <td><span class="status-${r.status}">${r.status}</span></td>
+                    <td>${rowNumber}</td>
+                    <td>${r.receiptNumber}</td>
+                    <td>${formatCurrency(r.amount||0)}</td>
+                    <td title="${r.subscriber?.name||''}">${subName}</td>
+                    <td title="${r.collector?.name||''}">${colName}</td>
+                    <td>${formatISODate(r.date)}</td>
+                    <td><span class="status-${r.status}">${r.status}</span></td>
                     <td><div class="actions-cell">
                         <button class="btn btn-danger" data-id="${r._id}" data-action="delete">حذف</button>
                     </div></td>
@@ -148,60 +212,76 @@
             });
         }
         
-        function applyFilters() {
-            const dateValue = filters.date.value;
-            const collectorValue = filters.collector.value.toLowerCase();
-            const receiptNumberValue = filters.receiptNumber.value;
+        function updatePaginationControls({ currentPage, totalPages, totalReceipts }) {
+            if (totalPages > 1) {
+                pageInfo.textContent = `الصفحة ${currentPage} من ${totalPages} (إجمالي ${totalReceipts} سند)`;
+                prevPageBtn.disabled = currentPage <= 1;
+                nextPageBtn.disabled = currentPage >= totalPages;
+                paginationControls.style.display = 'flex';
+            } else {
+                paginationControls.style.display = 'none';
+            }
+        }
 
-            filteredReceipts = allReceipts.filter(r => {
-                const collectorName = (r.collector?.name || '').toLowerCase();
-                const collectorCode = (r.collector?.collectorCode || '').toLowerCase();
-                const dateMatch = !dateValue || formatISODate(r.date) === dateValue;
-                const collectorMatch = !collectorValue || collectorName.includes(collectorValue) || collectorCode.includes(collectorValue);
-                const receiptNumberMatch = !receiptNumberValue || r.receiptNumber.toString().includes(receiptNumberValue);
-                return dateMatch && collectorMatch && receiptNumberMatch;
-            });
-            displayReceipts(filteredReceipts);
+        function handleFilter() {
+            const filters = {
+                startDate: document.getElementById('startDateFilter').value,
+                endDate: document.getElementById('endDateFilter').value,
+                collectorId: document.getElementById('collectorIdFilter').value,
+                startReceipt: document.getElementById('startReceiptFilter').value,
+                endReceipt: document.getElementById('endReceiptFilter').value,
+            };
+            Object.keys(filters).forEach(key => { if (!filters[key]) delete filters[key]; });
+            loadReceipts(1, filters);
+        }
+
+        async function handleExportClick() {
+            const btn = document.getElementById('exportExcelBtn');
+            btn.disabled = true;
+            btn.innerHTML = '...';
+            try {
+                const params = new URLSearchParams({ limit: 0, ...currentFilters });
+                const response = await fetch(`http://localhost:3000/api/receipts?${params.toString()}`);
+                if (!response.ok) throw new Error('فشل تحميل بيانات التصدير');
+                const data = await response.json();
+                
+                if (data.receipts.length === 0) {
+                    showToast('لا توجد بيانات لتصديرها.', 'warning');
+                    return;
+                }
+                const dataToExport = data.receipts.map(r => ({
+                    'رقم السند': r.receiptNumber, 'المبلغ': r.amount,
+                    'اسم المشترك': r.subscriber?.name || '', 'اسم المحصل': r.collector?.name || '',
+                    'كود المحصل': r.collector?.collectorCode || '', 'تاريخ التحصيل': formatISODate(r.date), 'الحالة': r.status
+                }));
+                const ws = XLSX.utils.json_to_sheet(dataToExport);
+                const wb = XLSX.utils.book_new();
+                XLSX.utils.book_append_sheet(wb, ws, "السندات");
+                XLSX.writeFile(wb, "Receipts_Export.xlsx");
+            } catch (error) {
+                showToast(error.message, 'error');
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = '⬇';
+            }
         }
         
-        function openDeleteModal(id) {
-            receiptIdToDelete = id;
-            deleteModal.classList.add('show');
-        }
-        function closeDeleteModal() {
-            deleteModal.classList.remove('show');
-            receiptIdToDelete = null;
-        }
-
-        async function confirmDelete() {
-            if (!receiptIdToDelete) return;
-            try {
-                await receiptService.deleteReceipt(receiptIdToDelete);
-                showToast('تم حذف السند بنجاح.', 'success');
-                initializePage(); // Refresh the data
-            } catch (error) {
-                showToast('فشل حذف السند.', 'error');
-            } finally {
-                closeDeleteModal();
-            }
-        }
-
-        function handleExportClick() {
-            if (filteredReceipts.length === 0) {
-                showToast('لا توجد بيانات لتصديرها.', 'warning');
+        function renderCollectorResults(results) {
+            collectorResultsDiv.innerHTML = '';
+            if (results.length === 0) {
+                collectorResultsDiv.style.display = 'none';
                 return;
             }
-            const dataToExport = filteredReceipts.map(r => ({
-                'رقم السند': r.receiptNumber, 'المبلغ': r.amount,
-                'اسم المشترك': r.subscriber?.name || '', 'اسم المحصل': r.collector?.name || '',
-                'كود المحصل': r.collector?.collectorCode || '', 'تاريخ التحصيل': formatISODate(r.date), 'الحالة': r.status
-            }));
-            const ws = XLSX.utils.json_to_sheet(dataToExport);
-            const wb = XLSX.utils.book_new();
-            XLSX.utils.book_append_sheet(wb, ws, "السندات");
-            XLSX.writeFile(wb, "Receipts_Export.xlsx");
+            results.forEach(collector => {
+                const item = document.createElement('div');
+                item.className = 'autocomplete-item';
+                item.textContent = `${collector.name} (${collector.collectorCode})`;
+                item.dataset.id = collector._id;
+                collectorResultsDiv.appendChild(item);
+            });
+            collectorResultsDiv.style.display = 'block';
         }
-
+        
         async function handleExcelImport(event) {
             const file = event.target.files[0];
             if (!file) return;
@@ -216,7 +296,7 @@
                     if (serverResponse.errors?.length > 0) {
                         alert(`حدثت أخطاء:\n${serverResponse.errors.join('\n')}`);
                     }
-                    initializePage();
+                    loadReceipts(1);
                 } else {
                     showToast(result.error, 'error');
                 }
@@ -224,17 +304,68 @@
                 showToast(error.message || 'فشل استيراد الملف.', 'error');
             } finally {
                 importBtn.disabled = false;
-                importBtn.textContent = 'استيراد من Excel';
+                importBtn.textContent = 'استيراد';
                 event.target.value = '';
             }
         }
         
+        function openDeleteModal(id) {
+            receiptIdToDelete = id;
+            deleteModal.classList.add('show');
+        }
+
+        function closeDeleteModal() {
+            receiptIdToDelete = null;
+            deleteModal.classList.remove('show');
+        }
+        
+        async function confirmDelete() {
+            if (!receiptIdToDelete) return;
+            try {
+                await receiptService.deleteReceipt(receiptIdToDelete);
+                showToast('تم حذف السند بنجاح.', 'success');
+                loadReceipts(1, currentFilters); 
+            } catch (error) {
+                showToast('فشل حذف السند.', 'error');
+            } finally {
+                closeDeleteModal();
+            }
+        }
+
         function setupEventListeners() {
-            Object.values(filters).forEach(el => el.addEventListener('input', applyFilters));
             document.getElementById('importReceiptsBtn').addEventListener('click', () => document.getElementById('excelFileInput').click());
             document.getElementById('excelFileInput').addEventListener('change', handleExcelImport);
             document.getElementById('exportExcelBtn').addEventListener('click', handleExportClick);
-            
+            filterBtn.addEventListener('click', handleFilter);
+
+            collectorFilterInput.addEventListener('keyup', () => {
+                const term = collectorFilterInput.value.toLowerCase();
+                if (!term) {
+                    renderCollectorResults([]);
+                    collectorIdInput.value = '';
+                    return;
+                }
+                const results = allCollectors.filter(c => 
+                    c.name.toLowerCase().includes(term) || c.collectorCode.toLowerCase().includes(term)
+                );
+                renderCollectorResults(results.slice(0, 7));
+            });
+
+            collectorResultsDiv.addEventListener('click', (e) => {
+                const item = e.target.closest('.autocomplete-item');
+                if (item) {
+                    collectorFilterInput.value = item.textContent;
+                    collectorIdInput.value = item.dataset.id;
+                    collectorResultsDiv.style.display = 'none';
+                }
+            });
+
+            document.addEventListener('click', (e) => {
+                if (!e.target.closest('.autocomplete-container')) {
+                    collectorResultsDiv.style.display = 'none';
+                }
+            });
+
             tableBody.addEventListener('click', (event) => {
                 const button = event.target.closest('button[data-action="delete"]');
                 if (button) {
@@ -244,6 +375,9 @@
 
             document.getElementById('cancelDeleteBtn').addEventListener('click', closeDeleteModal);
             document.getElementById('confirmDeleteBtn').addEventListener('click', confirmDelete);
+            
+            prevPageBtn.addEventListener('click', () => loadReceipts(currentPage - 1, currentFilters));
+            nextPageBtn.addEventListener('click', () => loadReceipts(currentPage + 1, currentFilters));
         }
 
         document.addEventListener('DOMContentLoaded', () => {
@@ -253,4 +387,3 @@
     </script>
 </body>
 </html>
-
