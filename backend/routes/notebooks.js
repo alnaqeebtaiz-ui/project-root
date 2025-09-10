@@ -213,6 +213,7 @@ router.put('/missing/:notebookId/:receiptNumber', async (req, res) => {
     } catch (error) { res.status(500).send('Server Error'); }
 });
 
+// @route   GET api/notebooks/find-receipt/:receiptNumber
 router.get('/find-receipt/:receiptNumber', async (req, res) => {
     try {
         const receiptNumber = parseInt(req.params.receiptNumber, 10);
@@ -220,7 +221,6 @@ router.get('/find-receipt/:receiptNumber', async (req, res) => {
             return res.status(400).json({ msg: 'رقم السند غير صالح' });
         }
 
-        // 1. ابحث عن السند وتفاصيله كالمعتاد
         const existingReceipt = await Receipt.findOne({ receiptNumber })
             .populate('subscriber', 'name')
             .populate('collector', 'name');
@@ -229,20 +229,39 @@ router.get('/find-receipt/:receiptNumber', async (req, res) => {
         let notebookSummary = null;
         let searchResult = {};
 
-        // 2. ابحث عن ملخص الدفتر الذي ينتمي إليه السند
-        const collectorIdForNotebook = existingReceipt ? existingReceipt.collector._id : null;
-        const notebook = await Notebook.findOne({ startNumber: startNumber, collectorId: collectorIdForNotebook });
+        // --- تم تعديل هذا الجزء بالكامل ليكون أذكى ويجلب اسم المحصل دائمًا ---
+        let notebook;
+        if (existingReceipt) {
+            // إذا وجدنا السند، نبحث عن دفتره المحدد
+            notebook = await Notebook.findOne({ 
+                startNumber: startNumber, 
+                collectorId: existingReceipt.collector._id 
+            });
+        } else {
+            // إذا لم نجد السند، نبحث في كل الدفاتر عن هذا الرقم المفقود
+            notebook = await Notebook.findOne({
+                startNumber: startNumber,
+                $or: [
+                    { 'missingReceipts.receiptNumber': receiptNumber },
+                    { 'pendingReceipts': receiptNumber }
+                ]
+            });
+        }
 
+        // إذا وجدنا الدفتر بأي من الطريقتين، نقوم ببناء الملخص الكامل
         if (notebook) {
-            // حساب الملخص
+            // نجلب اسم المحصل بشكل منفصل لضمان وجوده دائمًا
+            const collector = await Collector.findById(notebook.collectorId).select('name').lean();
+            
             const missingCount = notebook.missingReceipts?.length || 0;
             const pendingCount = notebook.pendingReceipts?.length || 0;
-            const availableCount = (notebook.maxUsedInNotebook - notebook.minUsedInNotebook + 1) - missingCount;
+            const availableCount = notebook.minUsedInNotebook ? (notebook.maxUsedInNotebook - notebook.minUsedInNotebook + 1) - missingCount : 0;
             
             notebookSummary = {
                 _id: notebook._id,
                 startNumber: notebook.startNumber,
                 endNumber: notebook.endNumber,
+                collectorName: collector?.name || notebook.collectorName, // <-- الإصلاح الأهم
                 availableCount: availableCount,
                 missingCount: missingCount,
                 pendingCount: pendingCount,
@@ -250,21 +269,16 @@ router.get('/find-receipt/:receiptNumber', async (req, res) => {
             };
         }
 
-        // 3. تحديد حالة السند النهائية ودمج النتائج
+        // بناء النتيجة النهائية بناءً على ما وجدناه
         if (existingReceipt) {
-            searchResult = {
-                status: 'مستخدم',
-                receipt: existingReceipt,
-                notebookSummary: notebookSummary,
-            };
+            searchResult = { status: 'مستخدم', receipt: existingReceipt, notebookSummary };
         } else if (notebook) {
             const missingInfo = notebook.missingReceipts.find(r => r.receiptNumber === receiptNumber);
             const isPending = notebook.pendingReceipts.includes(receiptNumber);
-
             if (missingInfo) {
-                searchResult = { status: 'مفقود', receipt: { ...missingInfo }, notebookSummary: notebookSummary };
+                searchResult = { status: 'مفقود', receipt: { ...missingInfo.toObject() }, notebookSummary };
             } else if (isPending) {
-                searchResult = { status: 'قيد الانتظار', receipt: { receiptNumber: receiptNumber, status: 'قيد الانتظار' }, notebookSummary: notebookSummary };
+                searchResult = { status: 'قيد الانتظار', receipt: { receiptNumber, status: 'قيد الانتظار' }, notebookSummary };
             }
         } else {
              searchResult = { status: 'غير موجود', receipt: { receiptNumber }, notebookSummary: null };
@@ -277,7 +291,6 @@ router.get('/find-receipt/:receiptNumber', async (req, res) => {
         res.status(500).send('Server Error');
     }
 });
-// --- نهاية تعديل مسار البحث ---
 
 
 module.exports = router;

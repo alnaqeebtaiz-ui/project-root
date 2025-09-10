@@ -1,0 +1,672 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>تقارير المشتركين</title>
+    <link rel="stylesheet" href="assets/css/styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <style>
+        /* Custom styles to integrate with your existing theme */
+        .page-content .card {
+            background-color: var(--card-bg-color, #fff);
+            border: var(--card-border, 1px solid #ddd);
+            border-radius: var(--card-border-radius, 8px);
+            box-shadow: var(--card-shadow, 0 2px 4px rgba(0,0,0,0.05));
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+        .page-content .card-header {
+            font-size: 1.2rem;
+            font-weight: bold;
+            margin-bottom: 1rem;
+            color: var(--text-color-primary, #333);
+        }
+        .form-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: bold;
+            color: var(--text-color-secondary, #555);
+        }
+        .form-control, .search-input, .data-table input[type="date"] {
+            width: 100%;
+            padding: 0.75rem;
+            border: 1px solid var(--input-border-color, #ccc);
+            border-radius: var(--input-border-radius, 4px);
+            font-size: 1rem;
+            background-color: var(--input-bg-color, #fff);
+            color: var(--input-text-color, #333);
+            box-sizing: border-box; /* Ensure padding doesn't push width */
+        }
+        .action-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end; /* Align items to the bottom */
+            margin-bottom: 1.5rem;
+            flex-wrap: wrap; /* Allow wrapping on smaller screens */
+            gap: 1rem; /* Space between items */
+        }
+        .action-bar .btn {
+            min-width: 120px; /* Give buttons a consistent minimum width */
+        }
+        .search-bar {
+            flex-grow: 1; /* Allow search bar to take available space */
+            max-width: 400px; /* Limit search bar width */
+            position: relative; /* For suggestions list positioning */
+        }
+        .search-bar .search-input {
+            width: 100%;
+        }
+        .suggestion-list {
+            position: absolute;
+            top: 100%; /* Position below the input */
+            left: 0;
+            right: 0;
+            z-index: 1000;
+            max-height: 200px;
+            overflow-y: auto;
+            border: 1px solid var(--border-color, #ccc);
+            background-color: var(--bg-color-light, #fff);
+            list-style: none;
+            padding: 0;
+            margin: 0;
+            border-radius: 0 0 4px 4px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+        .suggestion-list li {
+            padding: 0.75rem 1rem;
+            cursor: pointer;
+            border-bottom: 1px solid var(--border-color-light, #eee);
+            color: var(--text-color-primary, #333);
+        }
+        .suggestion-list li:last-child {
+            border-bottom: none;
+        }
+        .suggestion-list li:hover, .suggestion-list li.active {
+            background-color: var(--hover-bg-color, #f0f0f0);
+            color: var(--primary-color, #007bff);
+        }
+        .subscriber-specific-controls {
+            border-top: 1px solid var(--border-color-light, #eee);
+            padding-top: 1.5rem;
+            margin-top: 1.5rem;
+        }
+        .subscriber-display {
+            font-size: 1.1rem;
+            font-weight: bold;
+            color: var(--primary-color, #007bff);
+            margin-bottom: 1rem;
+        }
+        .date-filter-group {
+            display: none; /* Initially hidden */
+        }
+        .clear-selection-btn {
+            margin-right: auto; /* Push to the left */
+        }
+
+        /* Responsive adjustments */
+        @media (max-width: 768px) {
+            .action-bar {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            .action-bar .btn, .search-bar {
+                width: 100%;
+                max-width: none;
+            }
+            .subscriber-specific-controls .action-bar {
+                flex-direction: column;
+                align-items: stretch;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="page-container">
+        <header class="page-header">
+            <div class="container">
+                <h1>تقارير المشتركين</h1>
+                <nav class="breadcrumb">
+                    <a href="dashboard.html">لوحة التحكم</a> / <span>تقارير المشتركين</span>
+                </nav>
+            </div>
+        </header>
+
+        <main class="page-content">
+            <div class="container">
+
+                <div class="card">
+                    <div class="card-header">
+                        لوحة التحكم
+                    </div>
+                    <div class="card-body">
+                        <div class="action-bar align-items-end mb-3">
+                            <div class="search-bar">
+                                <label for="subscriberSearchInput" class="form-label">ابحث عن مشترك بالاسم أو الهاتف:</label>
+                                <input type="text" id="subscriberSearchInput" class="search-input" placeholder="اكتب اسم أو رقم هاتف...">
+                                <ul id="subscriberSuggestions" class="suggestion-list" style="display: none;"></ul>
+                            </div>
+                            <button class="btn btn-info" id="showAllLatestPaymentsBtn"><i class="fas fa-receipt me-2"></i>عرض آخر سداد للجميع</button>
+                            <button class="btn btn-success" id="exportExcelBtn" disabled style="display: none;"><i class="fas fa-file-excel me-2"></i>تصدير إلى Excel</button>
+                        </div>
+
+                        <div id="subscriberSpecificControls" class="subscriber-specific-controls" style="display: none;">
+                            <h3 class="subscriber-display" id="selectedSubscriberDisplay"></h3>
+                            <div class="action-bar align-items-end">
+                                <div class="form-group date-filter-group">
+                                    <label for="startDateFilter" class="form-label">من تاريخ (DD-MM-YYYY):</label>
+                                    <input type="date" id="startDateFilter" class="form-control">
+                                </div>
+                                <div class="form-group date-filter-group">
+                                    <label for="endDateFilter" class="form-label">إلى تاريخ (DD-MM-YYYY):</label>
+                                    <input type="date" id="endDateFilter" class="form-control">
+                                </div>
+                                <button class="btn btn-primary" id="showStatementBtn" disabled><i class="fas fa-file-invoice me-2"></i>عرض كشف الحساب</button>
+                                <button class="btn btn-info" id="showSingleLatestPaymentBtn" disabled><i class="fas fa-history me-2"></i>آخر سداد لهذا المشترك</button>
+                                <button class="btn btn-success" id="exportExcelBtn" disabled><i class="fas fa-file-excel me-2"></i>تصدير إلى Excel</button>
+                                <button class="btn btn-secondary clear-selection-btn" id="clearSelectionBtn" style="display: none;"><i class="fas fa-times me-2"></i>إلغاء اختيار المشترك</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card" id="reportResultsCard" style="display: none;">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0" id="reportTitle">نتائج التقرير</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="table-container">
+                            <table class="data-table">
+                                <thead id="reportTableHead"></thead>
+                                <tbody id="reportTableBody"></tbody>
+                                <tfoot id="reportTableFoot"></tfoot>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </main>
+    </div>
+
+    <div id="toast" class="toast-notification">
+        <p id="toastMessage"></p>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script type="module">
+        
+        // استيراد دالة showToast الخاصة بك بدلاً من bootstrap.Toast
+        import { showToast as customShowToast } from './assets/js/utils.js'; // تأكد من أن هذا المسار صحيح
+        import { getLatestPaymentsForAllSubscribers, getSubscriberStatement, searchSubscribers, getLatestPaymentForSingleSubscriber } from './assets/js/sub-reports-service.js'; // <--- تم إضافة الدالة الجديدة هنا
+        
+
+        // --- عناصر الواجهة ---
+        const subscriberSearchInput = document.getElementById('subscriberSearchInput');
+        const subscriberSuggestions = document.getElementById('subscriberSuggestions');
+        const showAllLatestPaymentsBtn = document.getElementById('showAllLatestPaymentsBtn');
+        const subscriberSpecificControls = document.getElementById('subscriberSpecificControls');
+        const selectedSubscriberDisplay = document.getElementById('selectedSubscriberDisplay');
+        const startDateFilter = document.getElementById('startDateFilter');
+        const endDateFilter = document.getElementById('endDateFilter');
+        const showStatementBtn = document.getElementById('showStatementBtn');
+        const showSingleLatestPaymentBtn = document.getElementById('showSingleLatestPaymentBtn');
+        const exportExcelBtn = document.getElementById('exportExcelBtn');
+        const clearSelectionBtn = document.getElementById('clearSelectionBtn');
+        const reportResultsCard = document.getElementById('reportResultsCard');
+        const reportTitle = document.getElementById('reportTitle');
+        const reportTableHead = document.getElementById('reportTableHead');
+        const reportTableBody = document.getElementById('reportTableBody');
+        const reportTableFoot = document.getElementById('reportTableFoot');
+        const toastNotification = document.getElementById('toast');
+        const toastMessage = document.getElementById('toastMessage');
+
+
+        // --- متغيرات حالة الصفحة ---
+        let selectedSubscriber = null; // لتخزين معلومات المشترك المختار { _id, name, phone }
+        let currentReportData = null;   // لتخزين بيانات التقرير الحالي للتصدير
+        let activeSuggestionIndex = -1; // لتتبع العنصر النشط في قائمة الاقتراحات (للتنقل بالأسهم)
+
+
+        // --- دالة لعرض رسائل Toast الخاصة بك ---
+        function showToast(message, type = 'success') { // افتراضية 'success'
+            // استخدام دالة showToast المستوردة من ملف utils.js الخاص بك
+            customShowToast(message, type);
+        }
+
+        // --- تنسيق الأرقام (بالأرقام الإنجليزية) ---
+        function formatNumber(num) {
+            // استخدام 'en-US' لضمان الأرقام الإنجليزية
+            return new Intl.NumberFormat('en-US', { style: 'decimal', minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(num);
+        }
+
+        // --- تنسيق التاريخ (ميلادي DD-MM-YYYY) ---
+        function formatDate(dateString) {
+            if (!dateString) return '';
+            const date = new Date(dateString);
+            const day = String(date.getDate()).padStart(2, '0');
+            const month = String(date.getMonth() + 1).padStart(2, '0'); // الأشهر تبدأ من 0
+            const year = String(date.getFullYear()); // <--- هنا التعديل الرئيسي: لا تستخدم slice(-2)
+            return `${day}-${month}-${year}`;
+        }
+
+        // --- تحديث حالة الأزرار وعناصر التحكم ---
+        // --- تحديث حالة الأزرار وعناصر التحكم ---
+        function updateControlsState() {
+            if (selectedSubscriber) {
+                // عرض عناصر التحكم الخاصة بالمشترك
+                subscriberSpecificControls.style.display = 'block';
+                selectedSubscriberDisplay.textContent = `التقرير لـ: ${selectedSubscriber.name} (${selectedSubscriber.phone})`;
+                selectedSubscriberDisplay.style.display = 'block';
+                document.querySelectorAll('.date-filter-group').forEach(el => el.style.display = 'block');
+                showStatementBtn.disabled = false;
+                showSingleLatestPaymentBtn.disabled = false; // <--- تفعيل الزر الجديد
+                clearSelectionBtn.style.display = 'block';
+            } else {
+                // إخفاء عناصر التحكم الخاصة بالمشترك
+                subscriberSpecificControls.style.display = 'none';
+                selectedSubscriberDisplay.style.display = 'none';
+                document.querySelectorAll('.date-filter-group').forEach(el => el.style.display = 'none');
+                showStatementBtn.disabled = true;
+                showSingleLatestPaymentBtn.disabled = true; // <--- تعطيل الزر الجديد
+                clearSelectionBtn.style.display = 'none';
+            }
+            
+            // التحكم في زر التصدير بشكل منفصل:
+            if (currentReportData) { // إذا كان هناك بيانات تقرير معروضة
+                exportExcelBtn.disabled = false;
+                exportExcelBtn.style.display = 'inline-flex'; // أو 'block' حسب الحاجة لتنسيقاتك
+            } else { // لا توجد بيانات تقرير
+                exportExcelBtn.disabled = true;
+                exportExcelBtn.style.display = 'none';
+            }
+
+            // إخفاء النتائج إذا لم يكن هناك تقرير
+            if (!currentReportData) {
+                reportResultsCard.style.display = 'none';
+            }
+        }
+
+        // --- مسح اختيار المشترك ---
+        function clearSubscriberSelection() {
+            selectedSubscriber = null;
+            subscriberSearchInput.value = '';
+            startDateFilter.value = '';
+            endDateFilter.value = '';
+            currentReportData = null;
+            reportResultsCard.style.display = 'none';
+            updateControlsState();
+            showToast('تم إلغاء اختيار المشترك.', 'info');
+        }
+
+        // --- معالج إدخال البحث عن المشتركين ---
+        let searchTimeout;
+        subscriberSearchInput.addEventListener('input', () => {
+            clearTimeout(searchTimeout);
+            const query = subscriberSearchInput.value.trim();
+            if (query.length < 2) {
+                subscriberSuggestions.style.display = 'none';
+                subscriberSuggestions.innerHTML = '';
+                return;
+            }
+
+            searchTimeout = setTimeout(async () => {
+                try {
+                    const results = await searchSubscribers(query);
+                    displaySuggestions(results);
+                } catch (error) {
+                    console.error("Search error:", error);
+                    showToast('فشل في البحث عن المشتركين.', 'error');
+                }
+            }, 300);
+        });
+
+        // --- عرض الاقتراحات ---
+        function displaySuggestions(subscribers) {
+            subscriberSuggestions.innerHTML = '';
+            if (subscribers.length === 0) {
+                subscriberSuggestions.style.display = 'none';
+                return;
+            }
+
+            subscribers.forEach((sub, index) => {
+                const li = document.createElement('li');
+                li.textContent = `${sub.name} - ${sub.phone}`;
+                li.dataset.id = sub._id;
+                li.dataset.name = sub.name;
+                li.dataset.phone = sub.phone;
+                li.addEventListener('click', () => selectSubscriber(sub));
+                subscriberSuggestions.appendChild(li);
+            });
+            subscriberSuggestions.style.display = 'block';
+            activeSuggestionIndex = -1;
+        }
+
+        // --- اختيار مشترك من الاقتراحات ---
+        function selectSubscriber(sub) {
+            selectedSubscriber = sub;
+            subscriberSearchInput.value = `${sub.name} - ${sub.phone}`;
+            subscriberSuggestions.style.display = 'none';
+            currentReportData = null;
+            reportResultsCard.style.display = 'none';
+            updateControlsState();
+            showToast(`تم اختيار المشترك: ${sub.name}`, 'success');
+        }
+
+        // --- التنقل في الاقتراحات باستخدام لوحة المفاتيح ---
+        subscriberSearchInput.addEventListener('keydown', (e) => {
+            const items = Array.from(subscriberSuggestions.children);
+            if (items.length === 0) return;
+
+            if (e.key === 'ArrowDown') {
+                e.preventDefault();
+                activeSuggestionIndex = (activeSuggestionIndex + 1) % items.length;
+                updateActiveSuggestion(items);
+            } else if (e.key === 'ArrowUp') {
+                e.preventDefault();
+                activeSuggestionIndex = (activeSuggestionIndex - 1 + items.length) % items.length;
+                updateActiveSuggestion(items);
+            } else if (e.key === 'Enter' && activeSuggestionIndex !== -1) {
+                e.preventDefault();
+                items[activeSuggestionIndex].click();
+            } else if (e.key === 'Escape') {
+                subscriberSuggestions.style.display = 'none';
+            }
+        });
+
+        function updateActiveSuggestion(items) {
+            items.forEach((item, index) => {
+                item.classList.toggle('active', index === activeSuggestionIndex);
+            });
+            if (activeSuggestionIndex !== -1) {
+                items[activeSuggestionIndex].scrollIntoView({ block: 'nearest' });
+            }
+        }
+
+        // إخفاء الاقتراحات عند النقر خارجها
+        document.addEventListener('click', (e) => {
+            if (!subscriberSearchInput.contains(e.target) && !subscriberSuggestions.contains(e.target)) {
+                subscriberSuggestions.style.display = 'none';
+            }
+        });
+
+        // --- معالج زر "عرض آخر سداد للجميع" ---
+        showAllLatestPaymentsBtn.addEventListener('click', async () => {
+            showAllLatestPaymentsBtn.disabled = true;
+            showAllLatestPaymentsBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> تحميل...';
+            exportExcelBtn.disabled = true;
+            reportResultsCard.style.display = 'none';
+            currentReportData = null;
+
+            try {
+                const data = await getLatestPaymentsForAllSubscribers();
+                currentReportData = data;
+                renderLatestPaymentsReport(data);
+                showToast('تم جلب آخر سداد بنجاح.', 'success');
+            } catch (error) {
+                console.error("Error fetching latest payments:", error);
+                showToast(error.message || 'فشل في جلب آخر سداد.', 'error');
+            } finally {
+                showAllLatestPaymentsBtn.disabled = false;
+                showAllLatestPaymentsBtn.innerHTML = '<i class="fas fa-receipt me-2"></i>عرض آخر سداد للجميع';
+                updateControlsState();
+            }
+        });
+
+        // --- عرض تقرير آخر سداد للجميع ---
+        // --- عرض تقرير آخر سداد للجميع ---
+        // --- عرض تقرير آخر سداد للجميع ---
+        function renderLatestPaymentsReport(data) {
+            reportTitle.textContent = 'كشف آخر تسديد لكل المشتركين'; // <--- هنا تعديل عنوان التقرير
+
+            const theadHTML = `
+                <thead>
+                    <tr>
+                        <th>اسم المشترك</th>
+                        <th>رقم الهاتف</th>
+                        <th>تاريخ آخر سداد</th>
+                        <th>مبلغ آخر سداد</th>
+                    </tr>
+                </thead>`;
+            reportTableHead.innerHTML = theadHTML;
+
+            let tbodyHTML = '<tbody>';
+            if (data && data.length > 0) {
+                data.forEach(row => {
+                    tbodyHTML += `
+                        <tr>
+                            <td>${row.subscriberName}</td>
+                            <td>${row.subscriberPhone || 'لا يوجد'}</td>
+                            <td>${formatDate(row.latestPaymentDate)}</td>
+                            <td>${formatNumber(row.latestPaymentAmount || 0)}</td>
+                        </tr>`;
+                });
+            } else {
+                tbodyHTML += `<tr><td colspan="4" class="text-center" style="padding: 2rem;">لا توجد بيانات سداد متاحة.</td></tr>`;
+            }
+            tbodyHTML += '</tbody>';
+            reportTableBody.innerHTML = tbodyHTML;
+            reportTableFoot.innerHTML = '';
+
+            reportResultsCard.style.display = 'block';
+            // exportExcelBtn.disabled = false; // <--- حذف هذا السطر
+        }
+
+        // --- معالج زر "عرض كشف الحساب" ---
+        showStatementBtn.addEventListener('click', async () => {
+            if (!selectedSubscriber) {
+                showToast('الرجاء اختيار مشترك أولاً.', 'warning');
+                return;
+            }
+
+            showStatementBtn.disabled = true;
+            showStatementBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> تحميل...';
+            exportExcelBtn.disabled = true;
+            reportResultsCard.style.display = 'none';
+            currentReportData = null;
+
+            try {
+                const startDate = startDateFilter.value;
+                const endDate = endDateFilter.value;
+
+                const data = await getSubscriberStatement(selectedSubscriber._id, startDate, endDate);
+                currentReportData = data;
+                renderStatementReport(data);
+                showToast('تم جلب كشف الحساب بنجاح.', 'success');
+            } catch (error) {
+                console.error("Error fetching statement:", error);
+                showToast(error.message || 'فشل في جلب كشف الحساب.', 'error');
+            } finally {
+                showStatementBtn.disabled = false;
+                showStatementBtn.innerHTML = '<i class="fas fa-file-invoice me-2"></i>عرض كشف الحساب';
+                updateControlsState();
+            }
+        });
+
+        // --- معالج زر "آخر سداد لهذا المشترك" ---
+        showSingleLatestPaymentBtn.addEventListener('click', async () => {
+            if (!selectedSubscriber) {
+                showToast('الرجاء اختيار مشترك أولاً.', 'warning');
+                return;
+            }
+
+            showSingleLatestPaymentBtn.disabled = true;
+            showSingleLatestPaymentBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> تحميل...';
+            exportExcelBtn.disabled = true;
+            reportResultsCard.style.display = 'none';
+            currentReportData = null;
+
+            try {
+                const result = await getLatestPaymentForSingleSubscriber(selectedSubscriber._id);
+
+                if (result.latestPayment) {
+                    currentReportData = {
+                        subscriberName: result.subscriberName,
+                        subscriberPhone: result.subscriberPhone,
+                        statement: [result.latestPayment], // لتوحيد تنسيق التصدير
+                        totalAmount: result.latestPayment.amount // لتوحيد تنسيق التصدير
+                    };
+                    renderStatementReport(currentReportData); // يمكننا استخدام نفس دالة العرض
+                    reportTitle.textContent = `آخر سداد للمشترك: ${result.subscriberName} (${result.subscriberPhone})`; // تحديث العنوان
+                    showToast('تم جلب آخر سداد بنجاح.', 'success');
+                } else {
+                    currentReportData = null; // لا توجد بيانات للتصدير
+                    reportResultsCard.style.display = 'none';
+                    showToast(result.msg || 'لا يوجد سداد سابق لهذا المشترك.', 'info');
+                }
+            } catch (error) {
+                console.error("Error fetching single latest payment:", error);
+                showToast(error.message || 'فشل في جلب آخر سداد للمشترك.', 'error');
+            } finally {
+                showSingleLatestPaymentBtn.disabled = false;
+                showSingleLatestPaymentBtn.innerHTML = '<i class="fas fa-history me-2"></i>آخر سداد لهذا المشترك';
+                updateControlsState();
+            }
+        });
+
+        // --- عرض تقرير كشف الحساب ---
+        function renderStatementReport(data) {
+            reportTitle.textContent = `كشف حساب المشترك: ${data.subscriberName} (${data.subscriberPhone})`;
+
+            const theadHTML = `
+                <thead>
+                    <tr>
+                        <th>رقم السند</th>
+                        <th>التاريخ</th>
+                        <th>المبلغ</th>
+                        <th>ملاحظات</th>
+                    </tr>
+                </thead>`;
+            reportTableHead.innerHTML = theadHTML;
+
+            let tbodyHTML = '<tbody>';
+            if (data.statement && data.statement.length > 0) {
+                data.statement.forEach(receipt => {
+                    tbodyHTML += `
+                        <tr>
+                            <td>${receipt.receiptNumber || 'N/A'}</td>
+                            <td>${formatDate(receipt.date)}</td>
+                            <td>${formatNumber(receipt.amount)}</td>
+                            <td>${receipt.notes || ''}</td>
+                        </tr>`;
+                });
+            } else {
+                tbodyHTML += `<tr><td colspan="4" class="text-center" style="padding: 2rem;">لا توجد سندات لهذا المشترك في الفترة المحددة.</td></tr>`;
+            }
+            tbodyHTML += '</tbody>';
+            reportTableBody.innerHTML = tbodyHTML;
+
+            const tfootHTML = `
+                <tfoot>
+                    <tr style="font-weight: bold;">
+                        <td colspan="2">الإجمالي</td>
+                        <td>${formatNumber(data.totalAmount)}</td>
+                        <td></td>
+                    </tr>
+                </tfoot>`;
+            reportTableFoot.innerHTML = tfootHTML;
+
+            reportResultsCard.style.display = 'block';
+        }
+
+        // --- معالج زر التصدير إلى Excel ---
+        // --- معالج زر التصدير إلى Excel ---
+        // --- معالج زر التصدير إلى Excel ---
+        exportExcelBtn.addEventListener('click', () => {
+            if (!currentReportData) {
+                showToast('لا توجد بيانات لتصديرها.', 'warning');
+                return;
+            }
+
+            let dataToExport = [];
+            let fileName = `تقرير_المشتركين_${new Date().toISOString().split('T')[0]}.xlsx`;
+            let reportMetadata = [];
+
+            try {
+                // إذا كان تقرير آخر سداد للجميع
+                if (Array.isArray(currentReportData) && currentReportData.every(item => 'subscriberName' in item)) {
+                    reportMetadata.push({ 'التقرير': 'كشف آخر تسديد لكل المشتركين' });
+                    reportMetadata.push({}); // سطر فارغ للفصل
+
+                    dataToExport = currentReportData.map(row => ({
+                        'اسم المشترك': row.subscriberName,
+                        'رقم الهاتف': row.subscriberPhone || 'لا يوجد',
+                        'تاريخ آخر سداد': formatDate(row.latestPaymentDate),
+                        'مبلغ آخر سداد': row.latestPaymentAmount || 0
+                    }));
+                    fileName = `آخر_سداد_للجميع_${new Date().toISOString().split('T')[0]}.xlsx`;
+                }
+                // إذا كان تقرير آخر سداد لمشترك واحد (يستخدم نفس هيكل كشف الحساب)
+                else if (currentReportData.statement && currentReportData.statement.length === 1 && currentReportData.totalAmount) {
+                    const subscriberName = currentReportData.subscriberName || 'غير معروف';
+                    reportMetadata.push({ 'التقرير': `آخر سداد للمشترك: ${subscriberName}` });
+                    reportMetadata.push({}); // سطر فارغ للفصل
+
+                    dataToExport = currentReportData.statement.map(receipt => ({
+                        'رقم السند': receipt.receiptNumber || 'N/A',
+                        'التاريخ': formatDate(receipt.date),
+                        'المبلغ': receipt.amount,
+                        'ملاحظات': receipt.notes || ''
+                    }));
+                    dataToExport.push({}); // فاصل
+                    dataToExport.push({ 'رقم السند': 'الإجمالي', 'المبلغ': currentReportData.totalAmount });
+                    fileName = `آخر_سداد_${subscriberName}_${new Date().toISOString().split('T')[0]}.xlsx`;
+                }
+                // إذا كان كشف حساب مشترك (أكثر من سند)
+                else if (currentReportData.statement && currentReportData.statement.length >= 0) {
+                    const subscriberName = currentReportData.subscriberName || 'غير معروف';
+                    const startDate = startDateFilter.value ? formatDate(startDateFilter.value) : 'البداية';
+                    const endDate = endDateFilter.value ? formatDate(endDateFilter.value) : 'النهاية';
+
+                    reportMetadata.push({ 'التقرير': `كشف المبالغ المدفوعة من قبل المشترك: ${subscriberName}` });
+                    reportMetadata.push({ 'الفترة': `من ${startDate} إلى ${endDate}` });
+                    reportMetadata.push({}); // سطر فارغ للفصل
+
+                    dataToExport = currentReportData.statement.map(receipt => ({
+                        'رقم السند': receipt.receiptNumber || 'N/A',
+                        'التاريخ': formatDate(receipt.date),
+                        'المبلغ': receipt.amount,
+                        'ملاحظات': receipt.notes || ''
+                    }));
+                    dataToExport.push({}); // فاصل
+                    dataToExport.push({ 'رقم السند': 'الإجمالي', 'المبلغ': currentReportData.totalAmount });
+                    fileName = `كشف_حساب_${subscriberName}_${new Date().toISOString().split('T')[0]}.xlsx`;
+                } else {
+                    showToast('لا يوجد تنسيق تصدير لهذا النوع من البيانات.', 'warning');
+                    return;
+                }
+
+                // دمج بيانات العنوان مع بيانات الجدول
+                const finalData = [...reportMetadata, ...dataToExport];
+
+                const ws = XLSX.utils.json_to_sheet(finalData);
+                const wb = XLSX.utils.book_new();
+                XLSX.utils.book_append_sheet(wb, ws, "Report");
+                XLSX.writeFile(wb, fileName);
+                showToast('تم تصدير التقرير بنجاح', 'success');
+
+            } catch (error) {
+                console.error("Export Error:", error);
+                showToast('فشل تصدير الملف.', 'error');
+            }
+        });
+
+        // --- معالج زر إلغاء اختيار المشترك ---
+        clearSelectionBtn.addEventListener('click', clearSubscriberSelection);
+
+        // --- تشغيل عند تحميل الصفحة ---
+        document.addEventListener('DOMContentLoaded', () => {
+            // تعيين التاريخ الافتراضي لـ endDateFilter إلى اليوم الحالي
+            const today = new Date();
+            const year = today.getFullYear();
+            const month = String(today.getMonth() + 1).padStart(2, '0');
+            const day = String(today.getDate()).padStart(2, '0');
+            endDateFilter.value = `${year}-${month}-${day}`;
+
+            updateControlsState(); // تحديث الحالة الأولية للعناصر
+        });
+    </script>
+</body>
+</html>

@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>إدارة الصناديق - برنامج إدارة فواتير الكهرباء</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <link rel="stylesheet" href="assets/css/styles.css">
     <style>
         .action-bar-container {
@@ -14,90 +15,61 @@
         .action-bar {
             display: flex; flex-wrap: wrap; gap: 15px; align-items: flex-end;
         }
-        .action-bar .form-group { margin-bottom: 0; }
-
         /* --- Smart Search Styles --- */
         .search-container { position: relative; }
+        .collector-search-wrapper { display: flex; gap: 5px; align-items: center; }
         .search-results {
-            position: absolute;
-            width: 100%;
-            background-color: white;
-            border: 1px solid #ddd;
-            border-top: none;
-            border-radius: 0 0 8px 8px;
-            z-index: 1001; /* Above modal content */
-            max-height: 150px;
-            overflow-y: auto;
+            position: absolute; width: 100%; background-color: white;
+            border: 1px solid #ddd; border-top: none; border-radius: 0 0 8px 8px;
+            z-index: 1001; max-height: 150px; overflow-y: auto;
         }
         .search-results div { padding: 10px; cursor: pointer; }
         .search-results div:hover { background-color: #f1f1f1; }
         .selected-collectors {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 8px;
-            margin-top: 10px;
-            padding: 10px;
-            background-color: #f9f9f9;
-            border-radius: 8px;
-            min-height: 40px;
+            display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px;
+            padding: 10px; background-color: #f9f9f9; border-radius: 8px; min-height: 40px;
         }
         .collector-tag {
             background-color: #e0e0e0; padding: 5px 10px; border-radius: 15px;
             display: flex; align-items: center; gap: 8px; font-size: 0.9em;
         }
         .collector-tag .remove-tag { cursor: pointer; font-weight: bold; color: #777; }
+        
+        /* --- إصلاح تصميم زر الإلغاء وتصغير الخط --- */
+        .modal-footer .btn { font-size: 0.9rem; padding: 8px 16px; }
+        .btn-secondary { background-color: #6c757d; border-color: #6c757d; color: #fff; }
+        .btn-secondary:hover { background-color: #5a6268; border-color: #545b62; }
     </style>
 </head>
 <body>
-
     <div class="page-container">
         <header class="page-header">
-            <div class="container">
-                <h1>إدارة الصناديق</h1>
-                <nav class="breadcrumb">
-                    <a href="dashboard.html">لوحة التحكم</a> / <span>إدارة الصناديق</span>
-                </nav>
-            </div>
+            <div class="container"><h1>إدارة الصناديق</h1><nav class="breadcrumb"><a href="dashboard.html">لوحة التحكم</a> / <span>إدارة الصناديق</span></nav></div>
         </header>
 
         <main class="page-content">
             <div class="container">
-                
                 <div class="action-bar-container">
                     <div class="action-bar">
                         <button id="addFundBtn" class="btn btn-primary">إضافة صندوق جديد</button>
-                         <div class="search-bar" style="margin-right: auto;">
-                            <input type="text" id="searchInput" placeholder="بحث باسم أو كود المحصل..." class="search-input">
-                        </div>
+                        <div class="search-bar" style="margin-right: auto;"><input type="text" id="searchInput" placeholder="بحث باسم أو كود الصندوق..." class="search-input"></div>
                     </div>
                 </div>
                 
                 <div class="table-container">
                     <table class="data-table">
-                        <thead>
-                            <tr>
-                                <th>كود الصندوق</th>
-                                <th>اسم الصندوق</th>
-                                <th>الرصيد الإجمالي</th>
-                                <th>عدد المحصلين</th>
-                                <th style="text-align: center;">الإجراءات</th>
-                            </tr>
-                        </thead>
-                        <tbody id="fundsTableBody">
-                             <tr><td colspan="5" style="text-align: center; padding: 2rem;">جاري تحميل البيانات...</td></tr>
-                        </tbody>
+                        <thead><tr><th>كود الصندوق</th><th>اسم الصندوق</th><th>الرصيد الافتتاحي الإجمالي</th><th>عدد المحصلين</th><th style="text-align: center;">الإجراءات</th></tr></thead>
+                        <tbody id="fundsTableBody"><tr><td colspan="5" style="text-align: center; padding: 2rem;">جاري تحميل البيانات...</td></tr></tbody>
                     </table>
                 </div>
             </div>
         </main>
     </div>
     
+    <!-- Modals -->
     <div id="fundModal" class="modal">
         <div class="modal-content">
-            <header class="modal-header">
-                <h2 id="modalTitle">إضافة صندوق جديد</h2>
-                <button class="close-btn">&times;</button>
-            </header>
+            <header class="modal-header"><h2 id="modalTitle">إضافة صندوق جديد</h2><button class="close-btn">&times;</button></header>
             <form id="fundForm">
                 <div class="modal-body">
                     <input type="hidden" id="fundId">
@@ -108,7 +80,11 @@
                     <div class="form-group">
                         <label>المحصلون المرتبطون:</label>
                         <div class="search-container">
-                            <input type="text" id="collectorSearchInput" placeholder="ابحث عن محصل لإضافته..." class="search-input">
+                             <!-- --- تم إضافة زر الإضافة هنا --- -->
+                            <div class="collector-search-wrapper">
+                                <input type="text" id="collectorSearchInput" placeholder="ابحث عن محصل..." class="form-control" style="flex-grow: 1;">
+                                <button type="button" id="addCollectorBtn" class="btn btn-success" disabled>+</button>
+                            </div>
                             <div id="collectorSearchResults" class="search-results" style="display: none;"></div>
                         </div>
                         <div id="selectedCollectors" class="selected-collectors"></div>
@@ -137,69 +113,79 @@
 
     <script type="module">
         import * as fundService from './assets/js/funds-service.js';
-        import { searchCollectors, getCollectors } from './assets/js/collectors-service.js';
+        import { getCollectors } from './assets/js/collectors-service.js';
         import { showToast, sanitizeInput, formatCurrency } from './assets/js/utils.js';
 
-        let allFunds = [], allCollectors = [];
-        let isEditMode = false, fundIdToProcess = null;
+        // --- Global State & DOM Elements ---
+        let allFunds = [], allCollectors = [], isEditMode = false, fundIdToProcess = null, collectorToAdd = null;
         let selectedCollectorsMap = new Map();
-
         const tableBody = document.getElementById('fundsTableBody');
         const searchInput = document.getElementById('searchInput');
         const fundModal = document.getElementById('fundModal');
-        const deleteModal = document.getElementById('deleteConfirmationModal');
         const fundForm = document.getElementById('fundForm');
         const collectorSearchInput = document.getElementById('collectorSearchInput');
         const searchResultsContainer = document.getElementById('collectorSearchResults');
         const selectedCollectorsContainer = document.getElementById('selectedCollectors');
+        const deleteModal = document.getElementById('deleteConfirmationModal');
+        const addCollectorBtn = document.getElementById('addCollectorBtn');
 
+        // --- Core Functions ---
         async function initializePage() {
-            tableBody.innerHTML = `<tr><td colspan="5" style="text-align: center; padding: 2rem;">جاري تحميل الصناديق...</td></tr>`;
+            tableBody.innerHTML = `<tr><td colspan="5" class="text-center p-4">جاري تحميل البيانات...</td></tr>`;
             try {
                 [allFunds, allCollectors] = await Promise.all([fundService.getFunds(), getCollectors()]);
                 displayFunds(allFunds);
             } catch (error) {
-                 tableBody.innerHTML = `<tr><td colspan="5" style="text-align: center; color: red;">فشل تحميل البيانات.</td></tr>`;
+                tableBody.innerHTML = `<tr><td colspan="5" class="text-center text-danger p-4">فشل تحميل البيانات.</td></tr>`;
+                showToast(error.message, 'error');
             }
         }
 
-        function displayFunds(funds) {
+        function displayFunds(fundsToDisplay) {
             tableBody.innerHTML = '';
-            if (funds.length === 0) {
-                tableBody.innerHTML = `<tr><td colspan="5" style="text-align: center; padding: 2rem;">لا توجد صناديق.</td></tr>`;
+            if (fundsToDisplay.length === 0) {
+                tableBody.innerHTML = `<tr><td colspan="5" class="text-center p-4">لا توجد صناديق لعرضها.</td></tr>`;
                 return;
             }
-            funds.forEach(f => {
+            fundsToDisplay.forEach(fund => {
+                const totalBalance = fund.collectors.reduce((sum, collector) => sum + (collector.openingBalance || 0), 0);
+                const collectorNames = fund.collectors.map(c => c.name).join(', ');
                 const row = document.createElement('tr');
                 row.innerHTML = `
-                    <td>${sanitizeInput(f.fundCode)}</td>
-                    <td>${sanitizeInput(f.name)}</td>
-                    <td>${formatCurrency(f.totalBalance || 0)}</td>
-                    <td>${f.collectorCount || 0}</td>
+                    <td>${sanitizeInput(fund.fundCode)}</td><td>${sanitizeInput(fund.name)}</td>
+                    <td>${formatCurrency(totalBalance)}</td><td title="${collectorNames}">${fund.collectors.length}</td>
                     <td><div class="actions-cell">
-                        <button class="btn btn-warning" data-id="${f._id}" data-action="edit">تعديل</button>
-                        <button class="btn btn-danger" data-id="${f._id}" data-action="delete">حذف</button>
-                    </div></td>
-                `;
+                        <button class="btn btn-warning" data-id="${fund._id}" data-action="edit">تعديل</button>
+                        <button class="btn btn-danger" data-id="${fund._id}" data-action="delete">حذف</button>
+                    </div></td>`;
                 tableBody.appendChild(row);
             });
         }
         
-        async function handleCollectorSearch(event) {
-            const searchTerm = event.target.value;
+        function handleCollectorSearch(event) {
+            const searchTerm = event.target.value.toLowerCase();
+            searchResultsContainer.innerHTML = '';
+            
+            // --- إصلاح مهم: لا تقم بإلغاء الاختيار إلا إذا قام المستخدم بتغيير النص يدويًا ---
+            if (collectorToAdd && event.target.value !== `${collectorToAdd.name} (${collectorToAdd.collectorCode})`) {
+                collectorToAdd = null;
+                addCollectorBtn.disabled = true;
+            }
+            
             if (searchTerm.length < 1) {
                 searchResultsContainer.style.display = 'none';
                 return;
             }
-            const results = await searchCollectors(searchTerm);
-            searchResultsContainer.innerHTML = '';
+
+            const availableCollectors = allCollectors.filter(c => (!c.fund || (isEditMode && c.fund === fundIdToProcess)));
+            const results = availableCollectors.filter(c => c.name.toLowerCase().includes(searchTerm) || c.collectorCode.toLowerCase().includes(searchTerm))
+                                           .filter(c => !selectedCollectorsMap.has(c._id));
+
             if (results.length > 0) {
-                // Filter out already selected collectors
-                const availableCollectors = results.filter(c => !selectedCollectorsMap.has(c._id));
-                availableCollectors.forEach(collector => {
+                results.forEach(collector => {
                     const div = document.createElement('div');
                     div.textContent = `${collector.name} (${collector.collectorCode})`;
-                    div.addEventListener('click', () => selectCollector(collector));
+                    div.addEventListener('click', () => prepareCollectorForAddition(collector));
                     searchResultsContainer.appendChild(div);
                 });
                 searchResultsContainer.style.display = 'block';
@@ -208,10 +194,22 @@
             }
         }
         
-        function selectCollector(collector) {
-            selectedCollectorsMap.set(collector._id, collector.name);
-            collectorSearchInput.value = '';
+        // --- دالة جديدة لتجهيز المحصل للإضافة ---
+        function prepareCollectorForAddition(collector) {
+            collectorToAdd = collector;
+            collectorSearchInput.value = `${collector.name} (${collector.collectorCode})`;
+            addCollectorBtn.disabled = false;
             searchResultsContainer.style.display = 'none';
+            addCollectorBtn.focus(); // <-- إضافة جديدة لتحسين تجربة المستخدم
+        }
+
+        // --- دالة جديدة لإضافة المحصل المجهز ---
+        function addPreparedCollector() {
+            if (!collectorToAdd) return;
+            selectedCollectorsMap.set(collectorToAdd._id, collectorToAdd.name);
+            collectorSearchInput.value = '';
+            collectorToAdd = null;
+            addCollectorBtn.disabled = true;
             renderSelectedCollectors();
         }
 
@@ -225,7 +223,8 @@
             selectedCollectorsMap.forEach((name, id) => {
                 const tag = document.createElement('div');
                 tag.className = 'collector-tag';
-                tag.innerHTML = `<span>${name}</span><span class="remove-tag" data-id="${id}">&times;</span>`;
+                // --- هذا هو السطر المهم الذي يضيف علامة X ---
+                tag.innerHTML = `<span>${name}</span><span class="remove-tag" data-id="${id}" title="إزالة المحصل">&times;</span>`;
                 selectedCollectorsContainer.appendChild(tag);
             });
         }
@@ -233,6 +232,7 @@
         function openFundModal(fund = null) {
             fundForm.reset();
             isEditMode = !!fund;
+            fundIdToProcess = fund ? fund._id : null;
             selectedCollectorsMap.clear();
             document.getElementById('modalTitle').textContent = isEditMode ? 'تعديل صندوق' : 'إضافة صندوق جديد';
             
@@ -242,39 +242,35 @@
                 document.getElementById('fundName').value = fund.name;
                 document.getElementById('fundDescription').value = fund.description || '';
                 
-                allCollectors.filter(c => c.fund === fund._id).forEach(c => {
-                    selectedCollectorsMap.set(c._id, c.name);
-                });
+                // --- هذا هو الجزء الجديد الذي يقوم بتعبئة المحصلين المرتبطين ---
+                // نحن نستخدم بيانات المحصلين التي جاءت مع الصندوق من الخادم
+                if (fund.collectors && fund.collectors.length > 0) {
+                    fund.collectors.forEach(c => {
+                        selectedCollectorsMap.set(c._id, c.name);
+                    });
+                }
             }
             
-            renderSelectedCollectors();
+            renderSelectedCollectors(); // عرض المحصلين الذين تم تحميلهم
             fundModal.classList.add('show');
         }
-
-        function closeFundModal() { fundModal.classList.remove('show'); }
-        function openDeleteModal(id) { fundIdToProcess = id; deleteModal.classList.add('show'); }
-        function closeDeleteModal() { deleteModal.classList.remove('show'); fundIdToProcess = null; }
 
         async function handleFormSubmit(event) {
             event.preventDefault();
             const fundData = {
-                fundCode: document.getElementById('fundCode').value,
-                name: document.getElementById('fundName').value,
-                description: document.getElementById('fundDescription').value,
-                collectors: Array.from(selectedCollectorsMap.keys())
+                fundCode: document.getElementById('fundCode').value, name: document.getElementById('fundName').value,
+                description: document.getElementById('fundDescription').value, collectors: Array.from(selectedCollectorsMap.keys())
             };
-            
             try {
                 if (isEditMode) {
-                    const fundId = document.getElementById('fundId').value;
-                    await fundService.updateFund(fundId, fundData);
+                    await fundService.updateFund(fundIdToProcess, fundData);
                     showToast('تم تحديث الصندوق بنجاح', 'success');
                 } else {
                     await fundService.addFund(fundData);
                     showToast('تمت إضافة الصندوق بنجاح', 'success');
                 }
-                closeFundModal();
-                initializePage();
+                fundModal.classList.remove('show');
+                await initializePage();
             } catch (error) {
                 showToast(error.message || 'حدث خطأ.', 'error');
             }
@@ -285,61 +281,41 @@
             try {
                 await fundService.deleteFund(fundIdToProcess);
                 showToast('تم حذف الصندوق بنجاح.', 'success');
-                initializePage();
-            } catch(error) {
-                showToast('فشل حذف الصندوق.', 'error');
-            } finally {
-                closeDeleteModal();
-            }
+                await initializePage();
+            } catch(error) { showToast('فشل حذف الصندوق.', 'error'); } 
+            finally { deleteModal.classList.remove('show'); fundIdToProcess = null; }
         }
 
         function performSearch() {
             const searchTerm = searchInput.value.toLowerCase();
-            const filteredFunds = allFunds.filter(f => 
-                (f.name.toLowerCase().includes(searchTerm)) || 
-                (f.fundCode.toLowerCase().includes(searchTerm))
-            );
-            // This is the advanced search: find which fund a collector belongs to
-            const collectorsFound = allCollectors.filter(c => 
-                c.name.toLowerCase().includes(searchTerm) || 
-                c.collectorCode.toLowerCase().includes(searchTerm)
-            );
-            const fundIdsFromCollectorSearch = new Set(collectorsFound.map(c => c.fund));
-            
-            const finalFilteredList = allFunds.filter(f => 
-                filteredFunds.includes(f) || fundIdsFromCollectorSearch.has(f._id)
-            );
-
-            displayFunds(searchTerm ? finalFilteredList : allFunds);
+            const filteredFunds = allFunds.filter(f => f.name.toLowerCase().includes(searchTerm) || f.fundCode.toLowerCase().includes(searchTerm));
+            displayFunds(filteredFunds);
         }
         
-        function setupEventListeners() {
-            document.getElementById('addFundBtn').addEventListener('click', () => openFundModal());
-            searchInput.addEventListener('keyup', performSearch);
-            fundModal.querySelectorAll('.close-btn').forEach(btn => btn.addEventListener('click', closeFundModal));
-            fundForm.addEventListener('submit', handleFormSubmit);
-            collectorSearchInput.addEventListener('keyup', handleCollectorSearch);
-            selectedCollectorsContainer.addEventListener('click', (e) => {
-                if (e.target.classList.contains('remove-tag')) {
-                    removeCollector(e.target.dataset.id);
-                }
-            });
-            tableBody.addEventListener('click', (event) => {
-                const button = event.target.closest('button[data-action]');
-                if (!button) return;
-                const id = button.dataset.id;
-                const fund = allFunds.find(f => f._id === id);
-                if (button.dataset.action === 'edit') openFundModal(fund);
-                if (button.dataset.action === 'delete') openDeleteModal(id);
-            });
-            document.getElementById('cancelDeleteBtn').addEventListener('click', closeDeleteModal);
-            document.getElementById('confirmDeleteBtn').addEventListener('click', confirmDelete);
-        }
-
-        document.addEventListener('DOMContentLoaded', () => {
-            initializePage();
-            setupEventListeners();
+        // --- Event Listeners ---
+        document.addEventListener('DOMContentLoaded', initializePage);
+        addCollectorBtn.addEventListener('click', addPreparedCollector); // <-- ربط الزر الجديد
+        document.getElementById('addFundBtn').addEventListener('click', () => openFundModal());
+        searchInput.addEventListener('input', performSearch);
+        fundModal.querySelectorAll('.close-btn').forEach(btn => btn.addEventListener('click', () => fundModal.classList.remove('show')));
+        fundForm.addEventListener('submit', handleFormSubmit);
+        collectorSearchInput.addEventListener('input', handleCollectorSearch);
+        selectedCollectorsContainer.addEventListener('click', (e) => {
+            if (e.target.classList.contains('remove-tag')) removeCollector(e.target.dataset.id);
         });
+        tableBody.addEventListener('click', (event) => {
+            const button = event.target.closest('button[data-action]');
+            if (!button) return;
+            const id = button.dataset.id;
+            const fund = allFunds.find(f => f._id === id);
+            if (button.dataset.action === 'edit') openFundModal(fund);
+            if (button.dataset.action === 'delete') {
+                fundIdToProcess = id; deleteModal.classList.add('show');
+            }
+        });
+        document.getElementById('cancelDeleteBtn').addEventListener('click', () => deleteModal.classList.remove('show'));
+        document.getElementById('confirmDeleteBtn').addEventListener('click', confirmDelete);
     </script>
 </body>
 </html>
+

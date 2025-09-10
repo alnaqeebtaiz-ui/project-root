@@ -58,6 +58,7 @@
                                 <input type="number" id="receiptSearchInput" class="search-input" placeholder="أدخل رقم السند...">
                             </div>
                             <button id="searchBtn" class="btn btn-primary"><i class="fas fa-search"></i> بحث</button>
+                            <button id="clearSearchBtn" class="btn btn-secondary" style="display: none;">مسح البحث</button>
                         </div>
                         <button id="sync-btn" class="btn btn-success">
                             <i class="fas fa-sync-alt"></i> تحديث ومزامنة الدفاتر
@@ -67,28 +68,34 @@
 
                 <div id="search-result-container" style="display: none; margin-bottom: 20px;"></div>
 
-                <div class="table-container" id="notebooks-table-container">
-                    <table class="data-table">
-                        <thead>
-                            <tr>
-                                <th>#</th>
-                                <th>نطاق الدفتر</th>
-                                <th>السندات المستخدمة</th>
-                                <th>السندات المفقودة</th>
-                                <th>قيد الانتظار</th>
-                                <th>الحالة</th>
-                                <th style="text-align: center;">الإجراءات</th>
-                            </tr>
-                        </thead>
-                        <tbody id="notebooksTableBody"></tbody>
-                    </table>
+                <!-- ▼ الإطار الجديد يبدأ هنا ▼ -->
+                <div id="main-content-wrapper">
+
+                    <div class="table-container" id="notebooks-table-container">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>#</th>
+                                    <th>نطاق الدفتر</th>
+                                    <th>السندات المستخدمة</th>
+                                    <th>السندات المفقودة</th>
+                                    <th>قيد الانتظار</th>
+                                    <th>الحالة</th>
+                                    <th style="text-align: center;">الإجراءات</th>
+                                </tr>
+                            </thead>
+                            <tbody id="notebooksTableBody"></tbody>
+                        </table>
+                    </div>
+                    
+                    <div class="pagination-controls" id="paginationControls" style="display: none;">
+                        <button id="nextPageBtn" class="btn btn-default">&laquo; التالي</button>
+                        <span id="pageInfo"></span>
+                        <button id="prevPageBtn" class="btn btn-default">السابق &raquo;</button>
+                    </div>
+
                 </div>
-                
-                <div class="pagination-controls" id="paginationControls" style="display: none;">
-                    <button id="nextPageBtn" class="btn btn-default">&laquo; التالي</button>
-                    <span id="pageInfo"></span>
-                    <button id="prevPageBtn" class="btn btn-default">السابق &raquo;</button>
-                </div>
+                <!-- ▲ نهاية الإطار الجديد ▲ -->
 
             </div>
         </main>
@@ -163,6 +170,8 @@
         const detailsModalBody = document.getElementById('modal-body-content');
         const editMissingModal = document.getElementById('edit-missing-receipt-modal');
         const editMissingForm = document.getElementById('edit-missing-receipt-form');
+        const clearSearchBtn = document.getElementById('clearSearchBtn');
+        const mainContentWrapper = document.getElementById('main-content-wrapper');
 
         // --- Core Functions ---
         async function loadNotebooks(page = 1) {
@@ -293,8 +302,14 @@
             }
             searchBtn.disabled = true;
             searchBtn.innerHTML = `<i class="fas fa-spinner fa-spin"></i>`;
+
+            // --- ▼ التعديلات الجديدة تبدأ هنا ▼ ---
+            mainContentWrapper.style.display = 'none'; // إخفاء المحتوى الرئيسي (الجدول والترقيم)
+            clearSearchBtn.style.display = 'inline-block'; // إظهار زر مسح البحث
             searchResultContainer.style.display = 'block';
             searchResultContainer.innerHTML = `<div class="loader"></div>`;
+            // --- ▲ نهاية التعديلات ▲ ---
+            
             try {
                 const result = await notebookService.findReceiptDetails(receiptNumber);
                 displaySearchResult(result);
@@ -310,11 +325,9 @@
             let receiptCardHTML = '';
             let notebookSummaryHTML = '';
 
-            // --- الجزء الأول: بناء بطاقة تفاصيل السند (تم تعديله ليقرأ من المصدر الصحيح) ---
+            // --- الجزء الأول: بناء بطاقة تفاصيل السند (لا تغيير هنا) ---
             if (result.status === 'مستخدم') {
                 const r = result.receipt;
-                // تعديل: استخدم notebookSummary بدلاً من notebook
-                const notebook = result.notebookSummary; 
                 receiptCardHTML = `<div class="card result-card"><div class="card-header"><h3>نتيجة البحث عن سند: ${r.receiptNumber}</h3><span class="status status-success">مستخدم</span></div><div class="card-body"><p><strong>المشترك:</strong> ${sanitizeInput(r.subscriber?.name) || 'غير محدد'}</p><p><strong>المبلغ:</strong> ${formatCurrency(r.amount)}</p><p><strong>التاريخ:</strong> ${r.date ? r.date.split('T')[0] : 'غير محدد'}</p></div></div>`;
             
             } else if (result.status === 'مفقود' || result.status === 'قيد الانتظار') {
@@ -326,7 +339,7 @@
                 receiptCardHTML = `<div class="card result-card"><div class="card-header"><h3>نتيجة البحث عن سند: ${result.receipt.receiptNumber}</h3><span class="status status-warning">غير موجود</span></div><div class="card-body"><p>هذا الرقم غير مسجل في النظام.</p></div></div>`;
             }
 
-            // --- الجزء الثاني: بناء جدول ملخص الدفتر (هذا الجزء سليم وسيعمل الآن) ---
+            // --- الجزء الثاني: بناء جدول ملخص الدفتر (تم تعديله بالكامل) ---
             if (result.notebookSummary) {
                 const notebook = result.notebookSummary;
                 notebookSummaryHTML = `
@@ -334,16 +347,18 @@
                     <table class="data-table search-result-summary-table">
                         <thead>
                             <tr>
+                                <th>المحصل</th>
                                 <th>نطاق الدفتر</th>
-                                <th>السندات المستخدمة</th>
-                                <th>السندات المفقودة</th>
-                                <th>قيد الانتظار</th>
+                                <th>المستخدمة</th>
+                                <th>المفقودة</th>
+                                <th>المنتظرة</th>
                                 <th>الحالة</th>
                                 <th style="text-align: center;">الإجراءات</th>
                             </tr>
                         </thead>
                         <tbody>
                             <tr>
+                                <td><strong>${sanitizeInput(notebook.collectorName)}</strong></td>
                                 <td>${notebook.startNumber} - ${notebook.endNumber}</td>
                                 <td>${notebook.availableCount || 0}</td>
                                 <td>${notebook.missingCount > 0 ? `<span style="color:red; font-weight:bold;">${notebook.missingCount}</span>` : 0}</td>
@@ -370,12 +385,27 @@
                 if (e.key === 'Enter') handleReceiptSearch();
             });
 
-            tableBody.addEventListener('click', (e) => {
+            // --- ▼ التعديل الجديد يبدأ هنا ▼ ---
+            clearSearchBtn.addEventListener('click', () => {
+                searchResultContainer.style.display = 'none'; // إخفاء حاوية البحث
+                clearSearchBtn.style.display = 'none'; // إخفاء زر مسح البحث
+                mainContentWrapper.style.display = 'block'; // إعادة إظهار المحتوى الرئيسي
+                searchInput.value = ''; // مسح خانة البحث
+                loadNotebooks(currentPage); // إعادة تحميل الصفحة الحالية للجدول
+            });
+
+            // دالة مشتركة للتعامل مع النقر على زر "عرض"
+            const tableClickHandler = (e) => {
                 const button = e.target.closest('button[data-action="view"]');
                 if (button) {
                     handleViewDetails(button.dataset.id);
                 }
-            });
+            };
+
+            // ربط الحدث بالجدول الرئيسي وبنتائج البحث
+            tableBody.addEventListener('click', tableClickHandler);
+            searchResultContainer.addEventListener('click', tableClickHandler);
+            // --- ▲ نهاية التعديل ▲ ---
             
             detailsModalBody.addEventListener('click', (e) => {
                 const item = e.target.closest('.receipt-cell.status-missing');
@@ -408,8 +438,8 @@
                     await notebookService.updateMissingReceipt(notebookId, receiptNumber, data);
                     showToast('تم حفظ التغييرات', 'success');
                     editMissingModal.classList.remove('show');
-                    await handleViewDetails(notebookId); // Refresh the details card
-                    await loadNotebooks(currentPage); // Refresh the main table
+                    await handleViewDetails(notebookId);
+                    await loadNotebooks(currentPage);
                 } catch (error) {
                     showToast(error.message, 'error');
                 }

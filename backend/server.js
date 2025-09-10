@@ -13,6 +13,8 @@ const notebooks = require('./routes/notebooks');
 const reportsRouter = require('./routes/reports');
 const fundsRouter = require('./routes/funds');
 const fundsReportsRouter = require('./routes/funds-reports');
+const subReportsRouter = require('./routes/sub-reports');
+
 
 // إنشاء تطبيق Express
 const app = express();
@@ -35,6 +37,8 @@ app.use('/api/notebooks', notebooks); // <-- وأضف هذا السطر
 app.use('/api/reports', reportsRouter);
 app.use('/api/funds', fundsRouter);
 app.use('/api/funds-reports', fundsReportsRouter);
+app.use('/api/sub-reports', subReportsRouter);
+
 
 
 
