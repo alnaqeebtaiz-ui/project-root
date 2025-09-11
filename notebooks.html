@@ -68,7 +68,6 @@
 
                 <div id="search-result-container" style="display: none; margin-bottom: 20px;"></div>
 
-                <!-- ▼ الإطار الجديد يبدأ هنا ▼ -->
                 <div id="main-content-wrapper">
 
                     <div class="table-container" id="notebooks-table-container">
@@ -95,9 +94,7 @@
                     </div>
 
                 </div>
-                <!-- ▲ نهاية الإطار الجديد ▲ -->
-
-            </div>
+                </div>
         </main>
     </div>
 
@@ -123,11 +120,11 @@
                     <input type="hidden" id="modal-receipt-number">
                     <div class="form-group">
                         <label for="receipt-number-display">رقم السند</label>
-                        <input type="text" id="receipt-number-display" disabled>
+                        <input type="text" id="receipt-number-display" disabled class="form-control">
                     </div>
                     <div class="form-group">
                         <label for="missing-status">الحالة</label>
-                        <select id="missing-status" required>
+                        <select id="missing-status" required class="form-control">
                             <option value="مفقود">مفقود</option>
                             <option value="ملغي">ملغي</option>
                             <option value="تالف">تالف</option>
@@ -136,7 +133,7 @@
                     </div>
                     <div class="form-group">
                         <label for="missing-notes">ملاحظات</label>
-                        <textarea id="missing-notes" rows="3"></textarea>
+                        <textarea id="missing-notes" rows="3" class="form-control"></textarea>
                     </div>
                     <footer class="modal-footer">
                         <button type="submit" class="btn btn-primary">حفظ التغييرات</button>
@@ -179,11 +176,13 @@
             paginationControls.style.display = 'none';
             currentPage = page;
             try {
-                const data = await notebookService.getNotebooksPaged(page, PAGE_LIMIT);
+                // استخدام دالة getNotebooksPaged من الـ service التي ترسل التوكن
+                const data = await notebookService.getNotebooksPaged(page, PAGE_LIMIT); // 👈 تم التعديل هنا
                 renderNotebooksTable(data.notebooks);
                 updatePaginationControls(data);
             } catch (error) {
-                tableBody.innerHTML = `<tr><td colspan="7" class="error-message" style="text-align: center;">${error.message}</td></tr>`;
+                tableBody.innerHTML = `<tr><td colspan="7" class="error-message" style="text-align: center;">${error.message || 'فشل تحميل الدفاتر.'}</td></tr>`; // 👈 تم تعديل رسالة الخطأ
+                showToast(error.message || 'فشل تحميل الدفاتر.', 'error'); // 👈 تم التعديل هنا لرسالة خطأ أفضل
             }
         }
 
@@ -225,10 +224,12 @@
             detailsModalBody.innerHTML = `<div class="loader"></div>`;
             detailsModal.classList.add('show');
             try {
-                const notebook = await notebookService.getNotebookDetails(notebookId);
+                // استخدام دالة getNotebookDetails من الـ service التي ترسل التوكن
+                const notebook = await notebookService.getNotebookDetails(notebookId); // 👈 تم التعديل هنا
                 renderNotebookCard(notebook);
             } catch (error) {
-                detailsModalBody.innerHTML = `<p class="error-message">${error.message}</p>`;
+                detailsModalBody.innerHTML = `<p class="error-message">${error.message || 'فشل تحميل تفاصيل الدفتر.'}</p>`; // 👈 تم تعديل رسالة الخطأ
+                showToast(error.message || 'فشل تحميل تفاصيل الدفتر.', 'error'); // 👈 تم التعديل هنا لرسالة خطأ أفضل
             }
         }
 
@@ -248,17 +249,17 @@
                 let statusClass, statusTitle;
 
                 if (usedNumbers.has(j)) {
-                     statusClass = 'status-used'; 
-                     statusTitle = 'الحالة: مستخدم';
+                    statusClass = 'status-used'; 
+                    statusTitle = 'الحالة: مستخدم';
                 } else if (missingNumbersData.has(j)) {
-                     statusClass = 'status-missing'; 
-                     statusTitle = 'الحالة: مفقود (اضغط للتعديل)';
-                     const missingData = missingNumbersData.get(j);
-                     cell.dataset.action = 'edit-missing';
-                     cell.dataset.notebookId = notebook._id;
-                     cell.dataset.receiptNumber = j;
-                     cell.dataset.status = missingData?.status || 'مفقود';
-                     cell.dataset.notes = missingData?.notes || '';
+                    statusClass = 'status-missing'; 
+                    statusTitle = 'الحالة: مفقود (اضغط للتعديل)';
+                    const missingData = missingNumbersData.get(j);
+                    cell.dataset.action = 'edit-missing';
+                    cell.dataset.notebookId = notebook._id;
+                    cell.dataset.receiptNumber = j;
+                    cell.dataset.status = missingData?.status || 'مفقود';
+                    cell.dataset.notes = missingData?.notes || '';
                 } else if (pendingNumbers.has(j)) {
                     statusClass = 'status-pending'; 
                     statusTitle = 'الحالة: قيد الانتظار';
@@ -283,11 +284,12 @@
             syncBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> جاري المزامنة...';
             showToast('بدء عملية المزامنة، قد تستغرق بعض الوقت...', 'info');
             try {
-                const result = await notebookService.syncNotebooks();
+                // استخدام دالة syncNotebooks من الـ service التي ترسل التوكن
+                const result = await notebookService.syncNotebooks(); // 👈 تم التعديل هنا
                 showToast(result.message, 'success');
                 loadNotebooks(1); // Reload from page 1 after sync
             } catch (error) {
-                showToast(error.message, 'error');
+                showToast(error.message || 'فشل في المزامنة.', 'error'); // 👈 تم تعديل رسالة الخطأ
             } finally {
                 syncBtn.disabled = false;
                 syncBtn.innerHTML = '<i class="fas fa-sync-alt"></i> تحديث ومزامنة الدفاتر';
@@ -311,10 +313,12 @@
             // --- ▲ نهاية التعديلات ▲ ---
             
             try {
-                const result = await notebookService.findReceiptDetails(receiptNumber);
+                // استخدام دالة findReceiptDetails من الـ service التي ترسل التوكن
+                const result = await notebookService.findReceiptDetails(receiptNumber); // 👈 تم التعديل هنا
                 displaySearchResult(result);
             } catch (error) {
-               searchResultContainer.innerHTML = `<div class="card error-message">فشل البحث: ${error.message}</div>`;
+               searchResultContainer.innerHTML = `<div class="card error-message">فشل البحث: ${error.message || 'حدث خطأ أثناء البحث.'}</div>`; // 👈 تم تعديل رسالة الخطأ
+               showToast(error.message || 'حدث خطأ أثناء البحث.', 'error'); // 👈 تم التعديل هنا لرسالة خطأ أفضل
             } finally {
                 searchBtn.disabled = false;
                 searchBtn.innerHTML = `<i class="fas fa-search"></i> بحث`;
@@ -376,7 +380,7 @@
             // --- دمج الجزأين معًا وعرضهما ---
             searchResultContainer.innerHTML = receiptCardHTML + notebookSummaryHTML;
         }
-                
+                    
 
         function setupEventListeners() {
             syncBtn.addEventListener('click', handleSyncClick);
@@ -435,13 +439,14 @@
                     notes: document.getElementById('missing-notes').value
                 };
                 try {
-                    await notebookService.updateMissingReceipt(notebookId, receiptNumber, data);
+                    // استخدام دالة updateMissingReceipt من الـ service التي ترسل التوكن
+                    await notebookService.updateMissingReceipt(notebookId, receiptNumber, data); // 👈 تم التعديل هنا
                     showToast('تم حفظ التغييرات', 'success');
                     editMissingModal.classList.remove('show');
                     await handleViewDetails(notebookId);
                     await loadNotebooks(currentPage);
                 } catch (error) {
-                    showToast(error.message, 'error');
+                    showToast(error.message || 'فشل في حفظ التغييرات.', 'error'); // 👈 تم تعديل رسالة الخطأ
                 }
             });
 

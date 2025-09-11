@@ -3,7 +3,25 @@
 // لجلب وإدارة بيانات المحصلين.
 
 // تعريف الرابط الأساسي للخادم الخلفي
-const API_URL = 'http://localhost:3000/api/collectors';
+const API_BASE_URL = 'http://localhost:3000/api'; // تم تعديل هذا ليصبح الرابط الأساسي فقط
+const COLLECTORS_API_URL = `${API_BASE_URL}/collectors`; // رابط API الخاص بالمحصلين
+
+// دالة مساعدة لجلب التوكن من localStorage
+const getAuthToken = () => localStorage.getItem('jwtToken'); // نستخدم 'jwtToken'
+
+// دالة مساعدة لإنشاء الهيدرات (Headers) مع التوكن
+const getAuthHeaders = () => {
+    const token = getAuthToken();
+    if (!token) {
+        // يمكنك هنا إعادة توجيه المستخدم لصفحة تسجيل الدخول إذا لم يكن هناك توكن
+        window.location.href = '/login.html'; // 💡💡💡 عدّل هذا المسار إذا كانت صفحة تسجيل الدخول مختلفة 💡💡💡
+        throw new Error('لا يوجد توكن مصادقة. يرجى تسجيل الدخول.');
+    }
+    return {
+        'Content-Type': 'application/json',
+        'x-auth-token': token // إضافة التوكن هنا
+    };
+};
 
 /**
  * جلب جميع المحصلين من الخادم.
@@ -11,14 +29,17 @@ const API_URL = 'http://localhost:3000/api/collectors';
  */
 export async function getCollectors() {
     try {
-        const response = await fetch(API_URL);
+        const headers = getAuthHeaders(); // جلب الهيدرات مع التوكن
+        const response = await fetch(COLLECTORS_API_URL, { headers }); // تمرير الهيدرات
+        
         if (!response.ok) {
-            throw new Error('فشل في جلب البيانات من الخادم.');
+            const errorData = await response.json(); // محاولة قراءة رسالة الخطأ من الخادم
+            throw new Error(errorData.msg || 'فشل في جلب البيانات من الخادم.');
         }
         return await response.json();
     } catch (error) {
         console.error("Error fetching collectors:", error);
-        return [];
+        throw error; // إعادة رمي الخطأ ليتم التعامل معه في الواجهة الأمامية (funds.html)
     }
 }
 
@@ -29,17 +50,16 @@ export async function getCollectors() {
  */
 export async function addCollector(collectorData) {
     try {
-        const response = await fetch(API_URL, {
+        const headers = getAuthHeaders(); // جلب الهيدرات مع التوكن
+        const response = await fetch(COLLECTORS_API_URL, {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
+            headers: headers, // تمرير الهيدرات مع التوكن ونوع المحتوى
             body: JSON.stringify(collectorData)
         });
 
         if (!response.ok) {
             const errorData = await response.json();
-            throw new Error(errorData.message || 'فشلت عملية إضافة المحصل.');
+            throw new Error(errorData.msg || 'فشلت عملية إضافة المحصل.');
         }
         return await response.json();
     } catch (error) {
@@ -55,10 +75,12 @@ export async function addCollector(collectorData) {
  */
 export async function getCollectorById(collectorId) {
     try {
-        const response = await fetch(`${API_URL}/${collectorId}`);
+        const headers = getAuthHeaders(); // جلب الهيدرات مع التوكن
+        const response = await fetch(`${COLLECTORS_API_URL}/${collectorId}`, { headers }); // تمرير الهيدرات
         if (!response.ok) {
             if (response.status === 404) return null;
-            throw new Error('فشل في جلب بيانات المحصل.');
+            const errorData = await response.json();
+            throw new Error(errorData.msg || 'فشل في جلب بيانات المحصل.');
         }
         return await response.json();
     } catch (error) {
@@ -74,17 +96,16 @@ export async function getCollectorById(collectorId) {
  */
 export async function updateCollector(collectorId, updatedData) {
     try {
-        const response = await fetch(`${API_URL}/${collectorId}`, {
+        const headers = getAuthHeaders(); // جلب الهيدرات مع التوكن
+        const response = await fetch(`${COLLECTORS_API_URL}/${collectorId}`, {
             method: 'PATCH',
-            headers: {
-                'Content-Type': 'application/json'
-            },
+            headers: headers, // تمرير الهيدرات مع التوكن ونوع المحتوى
             body: JSON.stringify(updatedData)
         });
 
         if (!response.ok) {
             const errorData = await response.json();
-            throw new Error(errorData.message || 'فشلت عملية تحديث المحصل.');
+            throw new Error(errorData.msg || 'فشلت عملية تحديث المحصل.');
         }
         return await response.json();
     } catch (error) {
@@ -99,13 +120,15 @@ export async function updateCollector(collectorId, updatedData) {
  */
 export async function deleteCollector(collectorId) {
     try {
-        const response = await fetch(`${API_URL}/${collectorId}`, {
-            method: 'DELETE'
+        const headers = getAuthHeaders(); // جلب الهيدرات مع التوكن
+        const response = await fetch(`${COLLECTORS_API_URL}/${collectorId}`, {
+            method: 'DELETE',
+            headers: headers // تمرير الهيدرات مع التوكن
         });
 
         if (!response.ok) {
             const errorData = await response.json();
-            throw new Error(errorData.message || 'فشلت عملية حذف المحصل.');
+            throw new Error(errorData.msg || 'فشلت عملية حذف المحصل.');
         }
         return await response.json();
     } catch (error) {
@@ -122,15 +145,17 @@ export async function deleteCollector(collectorId) {
  */
 export async function searchCollectors(query) {
     try {
+        const headers = getAuthHeaders(); // جلب الهيدرات مع التوكن
         // نستخدم encodeURIComponent لضمان أن مصطلح البحث آمن للإرسال في الرابط
-        const response = await fetch(`${API_URL}/search?q=${encodeURIComponent(query)}`);
+        const response = await fetch(`${COLLECTORS_API_URL}/search?q=${encodeURIComponent(query)}`, { headers }); // تمرير الهيدرات
         if (!response.ok) {
-            throw new Error('فشل في البحث عن المحصلين.');
+            const errorData = await response.json();
+            throw new Error(errorData.msg || 'فشل في البحث عن المحصلين.');
         }
         return await response.json();
     } catch (error) {
         console.error("Error searching collectors:", error);
-        return [];
+        throw error;
     }
 }
 // --- الإضافة الجديدة تنتهي هنا ---

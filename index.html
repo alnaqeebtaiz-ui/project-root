@@ -3,43 +3,116 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>برنامج إدارة فواتير الكهرباء - الصفحة الرئيسية</title>
-    <link rel="stylesheet" href="assets/css/styles.css">
+    <title>النقيب للكهرباء - برنامج إدارة الفواتير</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Almarai:wght@400;700&display=swap');
+        
+        body {
+            font-family: 'Almarai', sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #f4f7fc;
+            color: #343a40;
+        }
+
+        .container {
+            text-align: center;
+            padding: 20px;
+        }
+
+        .logo {
+            width: 120px;
+            height: 120px;
+            margin-bottom: 25px;
+            animation: pulse 2s infinite;
+            color: #007bff; /* لون أيقونة البرق */
+        }
+
+        h1 {
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin-bottom: 10px;
+            color: #0056b3; /* لون أزرق داكن احترافي */
+        }
+
+        p {
+            font-size: 1.2rem;
+            color: #6c757d;
+            margin-bottom: 30px;
+        }
+
+        .loader {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .loader .dot {
+            width: 15px;
+            height: 15px;
+            background-color: #007bff;
+            border-radius: 50%;
+            animation: bounce 1.4s infinite ease-in-out both;
+        }
+
+        .loader .dot:nth-child(1) { animation-delay: -0.32s; }
+        .loader .dot:nth-child(2) { animation-delay: -0.16s; }
+
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
+
+        @keyframes bounce {
+            0%, 80%, 100% { transform: scale(0); }
+            40% { transform: scale(1.0); }
+        }
+    </style>
 </head>
 <body>
-    <div class="hero-section">
-        <div class="container">
-            <div class="hero-content">
-                <h1 class="hero-title">برنامج إدارة فواتير الكهرباء</h1>
-                <p class="hero-subtitle">نظام شامل لإدارة المشتركين والمحصلين والتقارير المالية</p>
-                <div class="features-grid">
-                    <div class="feature-card">
-                        <h3>إدارة المشتركين</h3>
-                        <p>تسجيل وإدارة بيانات المشتركين بسهولة</p>
-                    </div>
-                    <div class="feature-card">
-                        <h3>متابعة المحصلين</h3>
-                        <p>تتبع أداء المحصلين ودفاتر السندات</p>
-                    </div>
-                    <div class="feature-card">
-                        <h3>التقارير المالية</h3>
-                        <p>تقارير تفصيلية وتجميعية شاملة</p>
-                    </div>
-                    <div class="feature-card">
-                        <h3>النسخ الاحتياطي</h3>
-                        <p>حفظ البيانات وتصديرها بأمان</p>
-                    </div>
-                </div>
-                <div class="cta-section">
-                    <a href="login.html" class="cta-button">تسجيل الدخول</a>
-                    <p class="login-help">هل تحتاج مساعدة؟ <a href="#contact">اتصل بنا</a></p>
-                </div>
-            </div>
+
+    <div class="container">
+        <!-- تم استبدال الشعار بأيقونة برق SVG مدمجة -->
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="logo">
+            <path d="M13 2L3 14h9l-1 8 8-12h-9l1-8z"></path>
+        </svg>
+        
+        <h1>النقيب للكهرباء</h1>
+        <p>برنامج إدارة فواتير الكهرباء</p>
+
+        <div class="loader">
+            <div class="dot"></div>
+            <div class="dot"></div>
+            <div class="dot"></div>
         </div>
     </div>
-    <script src="assets/js/firebase-config.js"></script>
-    <script src="assets/js/auth-init.js"></script>
-    <script src="assets/js/utils.js"></script>
+
+    <script>
+        // --- منطق الحارس الذكي ---
+        document.addEventListener('DOMContentLoaded', () => {
+            // ملاحظة: هذا الكود يفترض أنك تخزن معلومة تسجيل الدخول
+            // في localStorage أو sessionStorage. قم بتعديله ليتوافق مع نظامك.
+            
+            // مثال: التحقق من وجود "token" في localStorage
+            const isLoggedIn = localStorage.getItem('authToken'); 
+
+            // انتظر قليلاً لإظهار التصميم الجميل قبل إعادة التوجيه
+            setTimeout(() => {
+                if (isLoggedIn) {
+                    // إذا كان مسجلاً، اذهب إلى لوحة التحكم
+                    window.location.href = 'dashboard.html';
+                } else {
+                    // إذا لم يكن مسجلاً، اذهب إلى صفحة الدخول
+                    window.location.href = 'login.html';
+                }
+            }, 2000); // 2 ثانية
+        });
+    </script>
 </body>
 </html>
 

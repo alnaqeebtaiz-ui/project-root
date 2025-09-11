@@ -1,5 +1,26 @@
+// D:\project-root\assets\js\sub-reports-service.js
 // --- ملف خدمة تقارير المشتركين (Subscribers Reports Service) ---
 const API_URL = 'http://localhost:3000/api'; // URL الأساسي للخادم
+
+// 💡💡💡 إضافة دوال جلب التوكن و رؤوس الطلب 💡💡💡
+const getAuthToken = () => localStorage.getItem('jwtToken');
+
+const getAuthHeaders = (contentType = 'application/json') => {
+    const token = getAuthToken();
+    if (!token) {
+        // يمكن إعادة التوجيه لصفحة تسجيل الدخول إذا لم يتوفر التوكن
+        window.location.href = '/login.html';
+        throw new Error('لا يوجد توكن مصادقة. يرجى تسجيل الدخول.');
+    }
+    const headers = {
+        'x-auth-token': token // إضافة التوكن هنا
+    };
+    if (contentType) {
+        headers['Content-Type'] = contentType;
+    }
+    return headers;
+};
+
 
 /**
  * --- جلب آخر سداد لكل المشتركين ---
@@ -8,7 +29,9 @@ const API_URL = 'http://localhost:3000/api'; // URL الأساسي للخادم
  */
 export async function getLatestPaymentsForAllSubscribers() {
     try {
-        const response = await fetch(`${API_URL}/sub-reports/latest-payments`);
+        // 💡💡💡 استخدام getAuthHeaders 💡💡💡
+        const headers = getAuthHeaders(null); // لا نحتاج Content-Type هنا
+        const response = await fetch(`${API_URL}/sub-reports/latest-payments`, { headers });
         if (!response.ok) {
             const errorData = await response.json();
             throw new Error(errorData.msg || 'فشل في جلب آخر سداد للمشتركين.');
@@ -30,9 +53,11 @@ export async function getLatestPaymentsForAllSubscribers() {
  */
 export async function getSubscriberStatement(subscriberId, startDate, endDate) {
     try {
+        // 💡💡💡 استخدام getAuthHeaders 💡💡💡
+        const headers = getAuthHeaders();
         const response = await fetch(`${API_URL}/sub-reports/statement`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: headers, // 👈 استخدم الرؤوس مع التوكن
             body: JSON.stringify({ subscriberId, startDate, endDate }),
         });
 
@@ -55,8 +80,9 @@ export async function getSubscriberStatement(subscriberId, startDate, endDate) {
  */
 export async function searchSubscribers(query) {
     try {
-        // تأكد من استخدام مسار /api/subscribers/search الموجود لديك
-        const response = await fetch(`${API_URL}/subscribers/search?q=${encodeURIComponent(query)}`);
+        // 💡💡💡 استخدام getAuthHeaders 💡💡💡
+        const headers = getAuthHeaders(null); // لا نحتاج Content-Type هنا
+        const response = await fetch(`${API_URL}/subscribers/search?q=${encodeURIComponent(query)}`, { headers });
         if (!response.ok) {
             const errorData = await response.json();
             throw new Error(errorData.message || 'فشل في البحث عن المشتركين.');
@@ -75,7 +101,9 @@ export async function searchSubscribers(query) {
  */
 export async function getLatestPaymentForSingleSubscriber(subscriberId) {
     try {
-        const response = await fetch(`${API_URL}/sub-reports/latest-payment/${subscriberId}`);
+        // 💡💡💡 استخدام getAuthHeaders 💡💡💡
+        const headers = getAuthHeaders(null); // لا نحتاج Content-Type هنا
+        const response = await fetch(`${API_URL}/sub-reports/latest-payment/${subscriberId}`, { headers });
         if (!response.ok) {
             const errorData = await response.json();
             throw new Error(errorData.msg || 'فشل في جلب آخر سداد للمشترك.');

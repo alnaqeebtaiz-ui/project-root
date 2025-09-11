@@ -3,22 +3,70 @@
 // لجلب وإدارة بيانات سجلات التوريد.
 
 // تعريف الرابط الأساسي للخادم الخلفي
-const API_URL = 'http://localhost:3000/api/deposits';
+const API_BASE_URL = 'http://localhost:3000/api'; // الرابط الأساسي
+const DEPOSITS_API_URL = `${API_BASE_URL}/deposits`; // رابط API الخاص بالتوريدات
+// لا نحتاج لرابط COLLECTORS هنا، حيث أن getCollectors ستأتي من ملفها الخاص
+
+// دالة مساعدة لجلب التوكن من localStorage
+const getAuthToken = () => localStorage.getItem('jwtToken');
+
+// دالة مساعدة لإنشاء الهيدرات (Headers) مع التوكن
+const getAuthHeaders = () => {
+    const token = getAuthToken();
+    if (!token) {
+        // يمكنك هنا إعادة توجيه المستخدم لصفحة تسجيل الدخول إذا لم يكن هناك توكن
+        window.location.href = '/login.html'; 
+        throw new Error('لا يوجد توكن مصادقة. يرجى تسجيل الدخول.');
+    }
+    return {
+        'Content-Type': 'application/json',
+        'x-auth-token': token // إضافة التوكن هنا
+    };
+};
 
 /**
- * جلب جميع سجلات التوريد من الخادم.
- * @returns {Promise<Array>} - مصفوفة من سجلات التوريد.
+ * جلب جميع سجلات التوريد من الخادم مع دعم ترقيم الصفحات والبحث.
+ * @param {number} [page=1] - رقم الصفحة الحالي.
+ * @param {number} [limit=50] - عدد العناصر في الصفحة الواحدة. (limit=0 لـ "جلب الكل")
+ * @param {object} [filters={}] - كائن يحتوي على فلاتر البحث (مثل startDate, endDate, collectorId).
+ * @returns {Promise<object>} - كائن يحتوي على مصفوفة من سجلات التوريد ومعلومات التصفح.
  */
-export async function getDeposits() {
+export async function getDeposits(page = 1, limit = 50, filters = {}) {
     try {
-        const response = await fetch(API_URL);
+        const headers = getAuthHeaders(); // جلب الهيدرات مع التوكن
+        const params = new URLSearchParams({ page, limit, ...filters }); // بناء معلمات URL
+        const url = `${DEPOSITS_API_URL}?${params.toString()}`;
+
+        const response = await fetch(url, { headers }); // تمرير الهيدرات
         if (!response.ok) {
-            throw new Error('فشل في جلب بيانات التوريد من الخادم.');
+            const errorData = await response.json();
+            throw new Error(errorData.msg || 'فشل في جلب بيانات التوريد من الخادم.');
         }
         return await response.json();
     } catch (error) {
         console.error("Error fetching deposits:", error);
-        return [];
+        throw error;
+    }
+}
+
+/**
+ * جلب سجل توريد واحد بواسطة معرفه (ID).
+ * @param {string} depositId - معرف سجل التوريد.
+ * @returns {Promise<object>} - كائن سجل التوريد.
+ */
+export async function getDepositById(depositId) {
+    try {
+        const headers = getAuthHeaders(); // جلب الهيدرات مع التوكن
+        const response = await fetch(`${DEPOSITS_API_URL}/${depositId}`, { headers }); // تمرير الهيدرات
+
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.msg || 'فشل في جلب سجل التوريد بالمعرف المحدد.');
+        }
+        return await response.json();
+    } catch (error) {
+        console.error(`Error fetching deposit by ID ${depositId}:`, error);
+        throw error;
     }
 }
 
@@ -29,11 +77,10 @@ export async function getDeposits() {
  */
 export async function addDeposit(depositData) {
     try {
-        const response = await fetch(API_URL, {
+        const headers = getAuthHeaders(); // جلب الهيدرات مع التوكن
+        const response = await fetch(DEPOSITS_API_URL, {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
+            headers: headers, // تمرير الهيدرات مع التوكن ونوع المحتوى
             body: JSON.stringify(depositData)
         });
 
@@ -55,11 +102,10 @@ export async function addDeposit(depositData) {
  */
 export async function updateDeposit(depositId, updatedData) {
     try {
-        const response = await fetch(`${API_URL}/${depositId}`, {
+        const headers = getAuthHeaders(); // جلب الهيدرات مع التوكن
+        const response = await fetch(`${DEPOSITS_API_URL}/${depositId}`, {
             method: 'PATCH',
-            headers: {
-                'Content-Type': 'application/json'
-            },
+            headers: headers, // تمرير الهيدرات مع التوكن ونوع المحتوى
             body: JSON.stringify(updatedData)
         });
 
@@ -80,8 +126,10 @@ export async function updateDeposit(depositId, updatedData) {
  */
 export async function deleteDeposit(depositId) {
     try {
-        const response = await fetch(`${API_URL}/${depositId}`, {
-            method: 'DELETE'
+        const headers = getAuthHeaders(); // جلب الهيدرات مع التوكن
+        const response = await fetch(`${DEPOSITS_API_URL}/${depositId}`, {
+            method: 'DELETE',
+            headers: headers // تمرير الهيدرات مع التوكن
         });
 
         if (!response.ok) {

@@ -1,33 +1,70 @@
 // --- ملف خدمة الدفاتر (Notebooks Service) ---
-const API_URL = 'http://localhost:3000/api/notebooks';
+// يحتوي هذا الملف على جميع الدوال الخاصة بالتعامل مع الخادم الخلفي (Backend)
+// لجلب وإدارة بيانات الدفاتر.
+
+// تعريف الرابط الأساسي للخادم الخلفي
+const API_BASE_URL = 'http://localhost:3000/api'; // الرابط الأساسي
+const NOTEBOOKS_API_URL = `${API_BASE_URL}/notebooks`; // رابط API الخاص بالدفاتر
+
+// دالة مساعدة لجلب التوكن من localStorage
+const getAuthToken = () => localStorage.getItem('jwtToken');
+
+// دالة مساعدة لإنشاء الهيدرات (Headers) مع التوكن
+const getAuthHeaders = (contentType = 'application/json') => {
+    const token = getAuthToken();
+    if (!token) {
+        // يمكنك هنا إعادة توجيه المستخدم لصفحة تسجيل الدخول إذا لم يكن هناك توكن
+        window.location.href = '/login.html'; 
+        throw new Error('لا يوجد توكن مصادقة. يرجى تسجيل الدخول.');
+    }
+    const headers = {
+        'x-auth-token': token // إضافة التوكن هنا
+    };
+    if (contentType) {
+        headers['Content-Type'] = contentType;
+    }
+    return headers;
+};
 
 /**
- * --- دالة جديدة: جلب الدفاتر مع دعم الترقيم ---
- * تجلب صفحة محددة من ملخصات الدفاتر.
+ * جلب صفحة محددة من ملخصات الدفاتر.
  * @param {number} page - رقم الصفحة.
  * @param {number} limit - عدد العناصر في الصفحة.
  * @returns {Promise<Object>}
  */
 export async function getNotebooksPaged(page, limit) {
-    const response = await fetch(`${API_URL}?page=${page}&limit=${limit}`);
-    if (!response.ok) {
-        throw new Error('فشل تحميل الدفاتر من الخادم.');
+    try {
+        const headers = getAuthHeaders(null); // لا نحتاج لـ 'Content-Type' في طلب GET
+        const response = await fetch(`${NOTEBOOKS_API_URL}?page=${page}&limit=${limit}`, { headers }); // تمرير الهيدرات
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.msg || 'فشل تحميل الدفاتر من الخادم.');
+        }
+        return await response.json();
+    } catch (error) {
+        console.error("Error fetching paged notebooks:", error);
+        throw error;
     }
-    return await response.json();
 }
 
 /**
- * --- دالة جديدة: جلب تفاصيل دفتر واحد ---
  * تجلب كل التفاصيل الخاصة بدفتر معين لعرضها في بطاقة.
  * @param {string} notebookId - الـ ID الخاص بالدفتر.
  * @returns {Promise<Object>}
  */
 export async function getNotebookDetails(notebookId) {
-    const response = await fetch(`${API_URL}/${notebookId}/details`);
-    if (!response.ok) {
-        throw new Error('فشل تحميل تفاصيل الدفتر.');
+    try {
+        const headers = getAuthHeaders(null); // لا نحتاج لـ 'Content-Type' في طلب GET
+        const response = await fetch(`${NOTEBOOKS_API_URL}/${notebookId}/details`, { headers }); // تمرير الهيدرات
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.msg || 'فشل تحميل تفاصيل الدفتر.');
+        }
+        return await response.json();
+    } catch (error) {
+        console.error(`Error fetching notebook details for ID ${notebookId}:`, error);
+        throw error;
     }
-    return await response.json();
 }
 
 /**
@@ -35,9 +72,18 @@ export async function getNotebookDetails(notebookId) {
  * @returns {Promise<Array>}
  */
 export async function getNotebooks() {
-    const response = await fetch(API_URL);
-    if (!response.ok) throw new Error('فشل تحميل الدفاتر');
-    return await response.json();
+    try {
+        const headers = getAuthHeaders(null); // لا نحتاج لـ 'Content-Type' في طلب GET
+        const response = await fetch(NOTEBOOKS_API_URL, { headers }); // تمرير الهيدرات
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.msg || 'فشل تحميل الدفاتر.');
+        }
+        return await response.json();
+    } catch (error) {
+        console.error("Error fetching all notebooks:", error);
+        throw error;
+    }
 }
 
 /**
@@ -45,12 +91,21 @@ export async function getNotebooks() {
  * @returns {Promise<object>}
  */
 export async function syncNotebooks() {
-    const response = await fetch(`${API_URL}/sync`, { method: 'POST' });
-    if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'فشل في المزامنة');
+    try {
+        const headers = getAuthHeaders(); // نحتاج لـ 'Content-Type' هنا لـ POST
+        const response = await fetch(`${NOTEBOOKS_API_URL}/sync`, { 
+            method: 'POST',
+            headers: headers // تمرير الهيدرات
+        });
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.message || 'فشل في المزامنة.');
+        }
+        return await response.json();
+    } catch (error) {
+        console.error("Error syncing notebooks:", error);
+        throw error;
     }
-    return await response.json();
 }
 
 /**
@@ -59,15 +114,24 @@ export async function syncNotebooks() {
  * @param {number} receiptNumber - رقم السند المفقود.
  * @param {object} data - البيانات الجديدة { status, notes }.
  * @returns {Promise<object>}
- */
+*/
 export async function updateMissingReceipt(notebookId, receiptNumber, data) {
-    const response = await fetch(`${API_URL}/missing/${notebookId}/${receiptNumber}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data)
-    });
-    if (!response.ok) throw new Error('فشل في حفظ التغييرات');
-    return await response.json();
+    try {
+        const headers = getAuthHeaders(); // نحتاج لـ 'Content-Type' هنا لـ PUT
+        const response = await fetch(`${NOTEBOOKS_API_URL}/missing/${notebookId}/${receiptNumber}`, {
+            method: 'PUT',
+            headers: headers, // تمرير الهيدرات
+            body: JSON.stringify(data)
+        });
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.message || 'فشل في حفظ التغييرات.');
+        }
+        return await response.json();
+    } catch (error) {
+        console.error("Error updating missing receipt:", error);
+        throw error;
+    }
 }
 
 /**
@@ -76,7 +140,16 @@ export async function updateMissingReceipt(notebookId, receiptNumber, data) {
  * @returns {Promise<object>} - تفاصيل السند ودفتره.
  */
 export async function findReceiptDetails(receiptNumber) {
-    const response = await fetch(`${API_URL}/find-receipt/${receiptNumber}`);
-    if (!response.ok) throw new Error('حدث خطأ أثناء البحث');
-    return await response.json();
+    try {
+        const headers = getAuthHeaders(null); // لا نحتاج لـ 'Content-Type' في طلب GET
+        const response = await fetch(`${NOTEBOOKS_API_URL}/find-receipt/${receiptNumber}`, { headers }); // تمرير الهيدرات
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.msg || 'حدث خطأ أثناء البحث.');
+        }
+        return await response.json();
+    } catch (error) {
+        console.error("Error finding receipt details:", error);
+        throw error;
+    }
 }

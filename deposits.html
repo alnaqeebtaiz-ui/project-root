@@ -143,7 +143,7 @@
 
     <script type="module">
         import * as depositService from './assets/js/deposits-service.js';
-        import { getCollectors } from './assets/js/collectors-service.js';
+        import { getCollectors } from './assets/js/collectors-service.js'; // افتراض وجود هذا الملف
         import { showToast, sanitizeInput, formatCurrency } from './assets/js/utils.js';
 
         document.addEventListener('DOMContentLoaded', () => {
@@ -152,7 +152,7 @@
             let depositIdToDelete = null;
             const PAGE_LIMIT = 50;
 
-            // --- DOM Elements (FIXED: Defined inside DOMContentLoaded) ---
+            // --- DOM Elements ---
             const tableBody = document.getElementById('depositsTableBody');
             const filterBtn = document.getElementById('filterBtn');
             const paginationControls = document.getElementById('paginationControls');
@@ -174,9 +174,10 @@
 
             async function initializePage() {
                 try {
-                    allCollectors = await getCollectors();
+                    // استخدام دالة getCollectors من الـ service التي ترسل التوكن
+                    allCollectors = await getCollectors(); // 👈 تم التعديل هنا
                 } catch (error) {
-                    showToast('فشل تحميل قائمة المحصلين', 'error');
+                    showToast(error.message || 'فشل تحميل قائمة المحصلين', 'error'); // 👈 تم التعديل هنا لرسالة خطأ أفضل
                 }
                 await loadDeposits();
             }
@@ -187,14 +188,13 @@
                 currentPage = page;
                 currentFilters = filters;
                 try {
-                    const params = new URLSearchParams({ page, limit: PAGE_LIMIT, ...filters });
-                    const response = await fetch(`http://localhost:3000/api/deposits?${params.toString()}`);
-                    if (!response.ok) throw new Error('فشل في جلب البيانات من الخادم');
-                    const data = await response.json();
+                    // استخدام دالة getDeposits من الـ service التي ترسل التوكن
+                    const data = await depositService.getDeposits(page, PAGE_LIMIT, filters); // 👈 تم التعديل هنا
                     displayDeposits(data.deposits);
                     updatePaginationControls(data);
                 } catch (error) {
                     tableBody.innerHTML = `<tr><td colspan="6" style="text-align: center; color: red;">${error.message}</td></tr>`;
+                    showToast(error.message || 'فشل في جلب البيانات من الخادم', 'error'); // 👈 تم التعديل هنا لرسالة خطأ أفضل
                 }
             }
 
@@ -224,7 +224,8 @@
             }
             
             function updatePaginationControls({ currentPage, totalPages, totalDeposits }) {
-                if (totalPages > 0) {
+                // تم تعديل الشرط هنا ليعرض أزرار التصفح فقط إذا كانت هناك أكثر من صفحة واحدة
+                if (totalPages > 1) { 
                     pageInfo.textContent = `الصفحة ${currentPage} من ${totalPages} (إجمالي ${totalDeposits} سجل)`;
                     prevPageBtn.disabled = currentPage <= 1;
                     nextPageBtn.disabled = currentPage >= totalPages;
@@ -249,10 +250,9 @@
                 btn.disabled = true;
                 btn.textContent = 'جاري التصدير...';
                 try {
-                    const params = new URLSearchParams({ limit: 0, ...currentFilters });
-                    const response = await fetch(`http://localhost:3000/api/deposits?${params.toString()}`);
-                    if (!response.ok) throw new Error('فشل تحميل بيانات التصدير');
-                    const data = await response.json();
+                    // استخدام دالة getDeposits من الـ service لجلب كل شيء (limit=0)
+                    const data = await depositService.getDeposits(1, 0, currentFilters); // 👈 تم التعديل هنا
+                    
                     if (data.deposits.length === 0) {
                         showToast('لا توجد بيانات لتصديرها.', 'warning'); return;
                     }
@@ -266,8 +266,9 @@
                     const wb = XLSX.utils.book_new();
                     XLSX.utils.book_append_sheet(wb, ws, "سجلات التوريد");
                     XLSX.writeFile(wb, "Deposits_Export.xlsx");
+                    showToast('تم تصدير الكشف بنجاح', 'success'); // 👈 تم تعديل رسالة الخطأ
                 } catch (error) {
-                    showToast(error.message, 'error');
+                    showToast(error.message || 'فشل تصدير الكشف.', 'error'); // 👈 تم تعديل رسالة الخطأ
                 } finally {
                     btn.disabled = false; btn.textContent = 'تصدير Excel';
                 }
@@ -316,6 +317,8 @@
                     document.getElementById('modalReference').value = deposit.referenceNumber;
                 } else {
                     modalCollectorIdInput.value = '';
+                    // Set default date to today for new deposit
+                    document.getElementById('modalDate').value = new Date().toISOString().split('T')[0];
                 }
                 depositModal.classList.add('show');
             }
@@ -333,6 +336,12 @@
                     depositDate: document.getElementById('modalDate').value,
                     referenceNumber: document.getElementById('modalReference').value
                 };
+                // تحقق من أن كود المحصل قد تم تحديده
+                if (!data.collector) {
+                    showToast('الرجاء تحديد المحصل.', 'error');
+                    saveBtn.disabled = false;
+                    return;
+                }
                 try {
                     if (isEditMode) {
                         await depositService.updateDeposit(depositId, data);
@@ -361,7 +370,8 @@
             async function confirmDelete() {
                 if (!depositIdToDelete) return;
                 try {
-                    await depositService.deleteDeposit(depositIdToDelete);
+                    // استخدام دالة deleteDeposit من الـ service التي ترسل التوكن
+                    await depositService.deleteDeposit(depositIdToDelete); // 👈 تم التعديل هنا
                     showToast('تم حذف السجل بنجاح.', 'success');
                     loadDeposits(1, currentFilters); 
                 } catch (error) {
@@ -383,10 +393,11 @@
                 const id = button.dataset.id;
                 if (button.dataset.action === 'edit') {
                     try {
-                        const deposit = await depositService.getDepositById(id);
+                        // استخدام دالة getDepositById من الـ service التي ترسل التوكن
+                        const deposit = await depositService.getDepositById(id); // 👈 تم التعديل هنا
                         prepareAndOpenModal(deposit);
                     } catch(error) {
-                        showToast('لا يمكن العثور على السجل.', 'error');
+                        showToast(error.message || 'لا يمكن العثور على السجل.', 'error'); // 👈 تم تعديل رسالة الخطأ
                     }
                 }
                 if (button.dataset.action === 'delete') {

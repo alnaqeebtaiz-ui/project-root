@@ -102,7 +102,8 @@
     <div id="toast" class="toast-notification"><p id="toastMessage"></p></div>
 
     <script type="module">
-        import { generateFundReport } from './assets/js/funds-reports-service.js';
+        // 💡💡💡 استيراد دالة getFunds 💡💡💡
+        import { generateFundReport, getFunds } from './assets/js/funds-reports-service.js';
         import { showToast } from './assets/js/utils.js';
         
         let currentReportData = [];
@@ -117,12 +118,8 @@
 
         async function initializePage() {
             try {
-                // --- الكود الجديد لجلب قائمة الصناديق ---
-                const response = await fetch('http://localhost:3000/api/funds');
-                if (!response.ok) {
-                    throw new Error('فشل في تحميل قائمة الصناديق من الخادم.');
-                }
-                allFunds = await response.json();
+                // 💡💡💡 استدعاء دالة getFunds الجديدة 💡💡💡
+                allFunds = await getFunds(); 
                 
                 // تعبئة قائمة البحث الذكي
                 allFunds.forEach(f => {
@@ -134,6 +131,11 @@
             } catch (error) {
                 showToast(error.message, 'error');
             }
+            // Set current year and month for filters
+            const currentYear = new Date().getFullYear();
+            const currentMonth = new Date().getMonth() + 1;
+            document.getElementById('yearInput').value = currentYear;
+            document.getElementById('monthSelect').value = currentMonth;
         }
 
         function updateVisibleFilters() {
@@ -185,7 +187,7 @@
             reportResultContainer.innerHTML = '';
             if (reportType === 'periodic') {
                 if (!data || data.length === 0) {
-                     reportResultContainer.innerHTML = '<p>لا توجد بيانات لهذه الفترة.</p>'; return;
+                    reportResultContainer.innerHTML = '<p>لا توجد بيانات لهذه الفترة.</p>'; return;
                 }
 
                 // --- إضافة جديدة: متغير لتخزين الإجمالي الكلي ---
@@ -208,7 +210,6 @@
                         </tbody>
                         <tfoot>
                             <tr class="subtotal-row">
-                                <!-- تعديل بسيط: تم تغيير النص للوضوح -->
                                 <th>الإجمالي الفرعي للدورة</th> 
                                 <th>${cycleData.subTotal.openingBalance.toLocaleString('en-US')}</th>
                                 <th>${cycleData.subTotal.totalCollection.toLocaleString('en-US')}</th> <th>${cycleData.subTotal.assignmentCount}</th>
@@ -250,8 +251,8 @@
                 }
 
             } else if (reportType === 'annual') {
-                 if (!data || !data.monthlyData || data.monthlyData.length === 0) {
-                     reportResultContainer.innerHTML = '<p>لا توجد بيانات لهذه السنة.</p>'; return;
+                if (!data || !data.monthlyData || data.monthlyData.length === 0) {
+                    reportResultContainer.innerHTML = '<p>لا توجد بيانات لهذه السنة.</p>'; return;
                 }
                 const table = document.createElement('table');
                 table.className = 'data-table';
@@ -276,7 +277,7 @@
             }
         }
         function handleExport() {
-            if (!currentReportData || currentReportData.length === 0) {
+            if (!currentReportData || currentReportData.length === 0 || (currentReportData.monthlyData && currentReportData.monthlyData.length === 0)) { // Added check for annual report data
                 return showToast('لا توجد بيانات لتصديرها.', 'warning');
             }
 
@@ -331,7 +332,7 @@
                 if (currentReportData.length > 1) {
                     const firstCycleOpeningBalance = currentReportData[0].subTotal.openingBalance;
                     const finalNetAmount = firstCycleOpeningBalance + (grandTotal.totalCollection - grandTotal.totalDeposit);
-                     dataToExport.push({
+                    dataToExport.push({
                         'الصندوق': 'الإجمالي الكلي للفترة',
                         'الرصيد الافتتاحي': firstCycleOpeningBalance,
                         'مجموع التحصيل': grandTotal.totalCollection,
@@ -381,4 +382,3 @@
     </script>
 </body>
 </html>
-

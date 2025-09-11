@@ -3,110 +3,191 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>تسجيل الدخول - برنامج إدارة فواتير الكهرباء</title>
-    <!-- تم الإبقاء على ملف التصميم الخاص بك -->
+    <title>تسجيل الدخول</title>
     <link rel="stylesheet" href="assets/css/styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <style>
-        /* إضافة بسيطة لإظهار رسائل الخطأ بشكل جيد */
-        .error-message {
-            background-color: #f8d7da;
-            color: #721c24;
-            padding: 1rem;
-            border: 1px solid #f5c6cb;
-            border-radius: 0.25rem;
-            margin-bottom: 1rem;
-            text-align: center;
+        /* إعادة تعيين لبعض الأنماط لضمان تطبيقها بشكل صحيح */
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 0;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); /* خلفية متدرجة مثل الهيدر */
+            color: #333;
+            line-height: 1.6;
+            direction: rtl;
+            text-align: right;
+            display: flex; /* لتمكين توسيط المحتوى */
+            justify-content: center; /* توسيط أفقي */
+            align-items: center; /* توسيط عمودي */
+            min-height: 100vh; /* جعلها تملأ الشاشة عموديا */
         }
-        .hidden {
+
+        .login-card {
+            background-color: white; /* خلفية بيضاء لبطاقة الدخول */
+            padding: 40px; /* زيادة التباعد الداخلي */
+            border-radius: 15px; /* نفس نصف قطر الزاوية للبطاقات */
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2); /* ظل أعمق وأكثر احترافية */
+            width: 100%;
+            max-width: 450px; /* زيادة العرض الأقصى قليلا */
+            text-align: right;
+            border: 1px solid #e9ecef; /* نفس الحدود */
+            animation: fadeIn 0.8s ease-out; /* إضافة تأثير ظهور أنيق */
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .login-card h2 {
+            color: #2c3e50; /* لون العنوان */
+            margin-bottom: 2.5rem; /* زيادة المسافة البادئة */
+            font-size: 2.2em; /* حجم أكبر للعنوان */
+            text-align: center; /* توسيط العنوان */
+            font-weight: 700; /* جعل العنوان أكثر جرأة */
+        }
+
+        .form-group {
+            margin-bottom: 25px; /* زيادة المسافة بين حقول النموذج */
+            text-align: right;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 10px; /* مسافة أكبر بين Label و Input */
+            color: #2c3e50;
+            font-weight: 600;
+            font-size: 1.05em; /* حجم أكبر للLabel */
+        }
+
+      
+
+        .btn-login-custom { /* كلاس مخصص لزر الدخول هنا لتجاوز btn-primary إذا لزم الأمر */
+            width: 100%;
+            padding: 15px 20px; /* زيادة حجم الزر */
+            font-size: 1.15em; /* حجم خط أكبر */
+            font-weight: 700; /* خط أثقل */
+            border-radius: 8px; /* نصف قطر الزاوية للأزرار */
+            /* الألوان ستأتي من .btn-primary في styles.css */
+        }
+
+        .error-message {
+            color: #e74c3c; /* لون الخطر */
+            margin-top: 25px; /* زيادة المسافة */
+            font-size: 1em;
+            font-weight: 500;
+            text-align: center;
             display: none;
+        }
+
+        /* Toast Notification - يجب أن تكون متناسقة مع styles.css */
+        .toast-notification {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            padding: 15px 25px;
+            border-radius: 8px;
+            color: white;
+            font-weight: 500;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+            z-index: 2000;
+            opacity: 0;
+            transition: opacity 0.3s ease, transform 0.3s ease;
+            visibility: hidden;
+            display: flex; /* لضمان التنسيق المرن */
+            align-items: center;
+            gap: 10px;
+        }
+        .toast-notification.show {
+            opacity: 1;
+            transform: translateX(-50%) translateY(0);
+            visibility: visible;
+        }
+        .toast-notification.success {
+            background-color: #2ecc71; /* لون النجاح من styles.css */
+        }
+        .toast-notification.error {
+            background-color: #e74c3c; /* لون الخطأ من styles.css */
         }
     </style>
 </head>
 <body>
-    <div class="login-page">
-        <div class="container">
-            <div class="login-card">
-                <div class="login-header">
-                    <h1>تسجيل الدخول</h1>
-                    <p>أدخل بياناتك للوصول إلى النظام</p>
-                </div>
-                
-                <!-- إضافة حاوية لعرض رسائل الخطأ -->
-                <div id="error-message" class="error-message hidden"></div>
-
-                <!-- تم استخدام نفس النموذج الخاص بك -->
-                <form id="loginForm" class="login-form">
-                    <div class="form-group">
-                        <label for="email">البريد الإلكتروني:</label>
-                        <input type="email" id="email" name="email" required placeholder="أدخل بريدك الإلكتروني">
-                    </div>
-                    <div class="form-group">
-                        <label for="password">كلمة المرور:</label>
-                        <input type="password" id="password" name="password" required placeholder="أدخل كلمة المرور">
-                    </div>
-                    <div class="form-actions">
-                        <button type="submit" id="loginButton" class="login-button">تسجيل الدخول</button>
-                    </div>
-                    <div class="form-footer">
-                        <p><a href="index.html">العودة للصفحة الرئيسية</a></p>
-                    </div>
-                </form>
+    <div class="login-card">
+        <h2>تسجيل الدخول</h2>
+        <form id="loginForm">
+            <div class="form-group">
+                <label for="username">اسم المستخدم</label>
+                <input type="text" id="username" class="form-control" required autocomplete="username">
             </div>
-        </div>
+            <div class="form-group">
+                <label for="password">كلمة المرور</label>
+                <input type="password" id="password" class="form-control" required autocomplete="current-password">
+            </div>
+            <button type="submit" class="btn btn-primary btn-login-custom" id="loginButton">
+                <i class="fas fa-sign-in-alt me-2"></i> تسجيل الدخول
+            </button>
+            <p id="errorMessage" class="error-message"></p>
+        </form>
     </div>
 
-    <!-- 
-      قسم السكريبتات المحدّث
-      ملاحظة: type="module" ضروري جداً لعمل الكود 
-    -->
-    <script type="module" src="assets/js/firebase-config.js"></script>
-    <script type="module" src="assets/js/auth-init.js"></script>
-    
-    <!-- كود تسجيل الدخول -->
+    <div id="toast" class="toast-notification">
+        <p id="toastMessage"></p>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+    <script type="module" src="assets/js/auth-service.js"></script>
+    <script type="module" src="assets/js/utils.js"></script> 
     <script type="module">
-        import { auth } from './assets/js/firebase-config.js';
-        import { signInWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-auth.js";
+        import { login, isAuthenticated } from './assets/js/auth-service.js';
+        import { showToast } from './assets/js/utils.js'; 
 
         const loginForm = document.getElementById('loginForm');
-        const errorMessageDiv = document.getElementById('error-message');
+        const usernameInput = document.getElementById('username');
+        const passwordInput = document.getElementById('password');
         const loginButton = document.getElementById('loginButton');
+        const errorMessageElement = document.getElementById('errorMessage');
 
         loginForm.addEventListener('submit', async (e) => {
-            e.preventDefault(); // منع إعادة تحميل الصفحة
+            e.preventDefault();
 
-            // إخفاء رسالة الخطأ القديمة وتعطيل الزر مؤقتاً
-            errorMessageDiv.classList.add('hidden');
+            errorMessageElement.style.display = 'none';
             loginButton.disabled = true;
-            loginButton.textContent = 'جارِ التحقق...';
+            loginButton.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i> جاري الدخول...';
 
-            const email = loginForm.email.value;
-            const password = loginForm.password.value;
+            const username = usernameInput.value.trim();
+            const password = passwordInput.value.trim();
 
             try {
-                // محاولة تسجيل الدخول عبر Firebase
-                await signInWithEmailAndPassword(auth, email, password);
-                // عند النجاح، ملف auth-init.js سيقوم بنقلك إلى لوحة التحكم
-            } catch (error) {
-                console.error("Login failed:", error.code);
-                let friendlyMessage = 'فشل تسجيل الدخول. يرجى المحاولة مرة أخرى.';
-                
-                // ترجمة أخطاء Firebase إلى رسائل واضحة للمستخدم
-                if (error.code === 'auth/invalid-credential' || error.code === 'auth/wrong-password' || error.code === 'auth/user-not-found') {
-                    friendlyMessage = 'البريد الإلكتروني أو كلمة المرور غير صحيحة.';
-                } else if (error.code === 'auth/invalid-email') {
-                    friendlyMessage = 'صيغة البريد الإلكتروني غير صحيحة.';
+                const result = await login(username, password);
+                if (result && result.success) {
+                    showToast('تم تسجيل الدخول بنجاح!', 'success');
+                    window.location.href = 'dashboard.html'; 
+                } else {
+                    errorMessageElement.textContent = result.message || 'فشل تسجيل الدخول. الرجاء التحقق من اسم المستخدم وكلمة المرور.';
+                    errorMessageElement.style.display = 'block';
+                    showToast(result.message || 'فشل تسجيل الدخول!', 'error');
                 }
-
-                // عرض رسالة الخطأ
-                errorMessageDiv.textContent = friendlyMessage;
-                errorMessageDiv.classList.remove('hidden');
-
-                // إعادة تفعيل الزر
+            } catch (error) {
+                console.error('Login error:', error);
+                errorMessageElement.textContent = error.message || 'حدث خطأ غير متوقع. الرجاء المحاولة لاحقًا.';
+                errorMessageElement.style.display = 'block';
+                showToast(error.message || 'خطأ في الاتصال بالخادم!', 'error');
+            } finally {
                 loginButton.disabled = false;
-                loginButton.textContent = 'تسجيل الدخول';
+                loginButton.innerHTML = '<i class="fas fa-sign-in-alt me-2"></i> تسجيل الدخول';
             }
         });
+
+        // تم تعطيل هذا الجزء مؤقتًا للسماح لك برؤية صفحة تسجيل الدخول
+        /*
+        document.addEventListener('DOMContentLoaded', () => {
+            if (isAuthenticated()) {
+                window.location.href = 'dashboard.html'; 
+            }
+        });
+        */
     </script>
 </body>
 </html>
-

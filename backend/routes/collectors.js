@@ -5,9 +5,17 @@ const router = express.Router();
 // استيراد "نموذج المحصل" الذي أنشأناه
 const Collector = require('../models/Collector');
 
+// 💡 سطر جديد: استيراد الـ middleware للمصادقة والصلاحيات
+const { authenticateToken, authorizeRoles } = require('../middleware/authMiddleware');
+
+// 💡 سطر جديد: تطبيق authenticateToken على جميع المسارات في هذا الراوتر
+// هذا يضمن أن جميع المسارات أدناه تتطلب تسجيل الدخول.
+router.use(authenticateToken); 
+
 // --- تعريف المسارات (قائمة الطعام) ---
 
 // المسار 1: جلب جميع المحصلين
+// 💡 ملاحظة: هذا المسار الآن محمي بـ `authenticateToken` بسبب `router.use()` أعلاه.
 router.get('/', async (req, res) => {
     try {
         const collectors = await Collector.find().sort({ collectorCode: 1 });
@@ -17,8 +25,8 @@ router.get('/', async (req, res) => {
     }
 });
 
-// --- الإضافة الجديدة والمهمة تبدأ هنا ---
-// المسار 2: للبحث الذكي عن المحصلين (يجب أن يأتي قبل المسار العام /:id)
+// المسار 2: للبحث الذكي عن المحصلين
+// 💡 ملاحظة: هذا المسار الآن محمي بـ `authenticateToken` بسبب `router.use()` أعلاه.
 router.get('/search', async (req, res) => {
     try {
         const searchTerm = req.query.q || '';
@@ -33,17 +41,17 @@ router.get('/search', async (req, res) => {
                 { name: regex },
                 { collectorCode: regex }
             ]
-        }).limit(10); // إعادة أول 10 نتائج فقط لضمان السرعة
+        }).limit(10); 
 
         res.json(collectors);
     } catch (err) {
         res.status(500).json({ message: 'حدث خطأ في الخادم أثناء البحث.' });
     }
 });
-// --- الإضافة الجديدة تنتهي هنا ---
 
 
-// المسار 3: جلب محصل واحد بواسطة ID (يجب أن يأتي بعد المسارات الأكثر تحديدًا)
+// المسار 3: جلب محصل واحد بواسطة ID
+// 💡 ملاحظة: هذا المسار الآن محمي بـ `authenticateToken` بسبب `router.use()` أعلاه.
 router.get('/:id', async (req, res) => {
     try {
         const collector = await Collector.findById(req.params.id);
@@ -57,7 +65,8 @@ router.get('/:id', async (req, res) => {
 });
 
 // المسار 4: إضافة محصل جديد
-router.post('/', async (req, res) => {
+// 💡 إضافة: يتطلب دور 'admin' أو 'manager'
+router.post('/', authorizeRoles('admin', 'manager'), async (req, res) => {
     const collector = new Collector({
         collectorCode: req.body.collectorCode,
         name: req.body.name,
@@ -76,7 +85,8 @@ router.post('/', async (req, res) => {
 });
 
 // المسار 5: تحديث بيانات محصل
-router.patch('/:id', async (req, res) => {
+// 💡 إضافة: يتطلب دور 'admin' أو 'manager'
+router.patch('/:id', authorizeRoles('admin', 'manager'), async (req, res) => {
     try {
         const updatedCollector = await Collector.findByIdAndUpdate(
             req.params.id, 
@@ -98,7 +108,8 @@ router.patch('/:id', async (req, res) => {
 });
 
 // المسار 6: حذف محصل
-router.delete('/:id', async (req, res) => {
+// 💡 إضافة: يتطلب دور 'admin' فقط
+router.delete('/:id', authorizeRoles('admin'), async (req, res) => {
     try {
         const deletedCollector = await Collector.findByIdAndDelete(req.params.id);
 
@@ -114,4 +125,3 @@ router.delete('/:id', async (req, res) => {
 
 // تصدير الراوتر لكي يتمكن الخادم الرئيسي من استخدامه
 module.exports = router;
-

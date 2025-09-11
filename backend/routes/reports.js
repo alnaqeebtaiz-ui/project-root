@@ -2,12 +2,39 @@ const express = require('express');
 const router = express.Router();
 const Receipt = require('../models/Receipt');
 const Deposit = require('../models/Deposit');
-const Collector = require('../models/Collector'); // <-- تم استيراد مودل المحصل
+const Collector = require('../models/Collector');
 const mongoose = require('mongoose');
 const Notebook = require('../models/Notebook');
 
+// 💡💡💡 سطر جديد تمت إضافته هنا: لاستيراد دوال الحماية 💡💡💡
+const { authenticateToken, authorizeRoles } = require('../middleware/authMiddleware');
+
+// 💡💡💡 سطر جديد تمت إضافته هنا: لتطبيق الحماية الأساسية على جميع المسارات في هذا الملف 💡💡💡
+// هذا يعني أن أي شخص يحاول الوصول لأي من مسارات التقارير يجب أن يكون مسجل دخول (لديه توكن صالح).
+// بالإضافة إلى ذلك، يجب أن يكون لديه دور "admin" أو "manager" أو "collector".
+// يمكن للمحصل رؤية تقاريره الخاصة فقط، بينما المدير والمسؤول يرى كل شيء.
+router.use(authenticateToken); 
+
+
 router.post('/generate', async (req, res) => {
     const { reportType, filters } = req.body;
+    let authorizedCollectorId = null;
+
+    // 💡💡💡 إضافة منطق التحقق من الأدوار والفلترة حسب المحصل 💡💡💡
+    if (req.user.role === 'collector') {
+        // إذا كان المستخدم محصلًا، فيمكنه فقط رؤية تقاريره الخاصة
+        authorizedCollectorId = req.user.id;
+        // التأكد من أن الفلاتر تتطابق مع المحصل المصرح له (اختياري، يمكننا فرضها هنا)
+        if (filters.collectorId && filters.collectorId !== authorizedCollectorId) {
+            return res.status(403).json({ message: 'غير مصرح لك بالوصول لتقارير محصلين آخرين.' });
+        }
+        filters.collectorId = authorizedCollectorId; // فرض فلتر المحصل
+    } else if (!['admin', 'manager'].includes(req.user.role)) {
+        // إذا لم يكن المدير أو المشرف، وليس محصل، فغير مصرح له
+        return res.status(403).json({ message: 'غير مصرح لك بالوصول إلى التقارير.' });
+    }
+    // 💡💡💡 نهاية منطق التحقق 💡💡💡
+
     try {
         let reportData;
         switch (reportType) {
@@ -17,14 +44,11 @@ router.post('/generate', async (req, res) => {
             case 'periodic-summary-table':
                 reportData = await generatePeriodicSummaryReport(filters);
                 break;
-
             case 'annual-summary':
                 reportData = await generateAnnualReport(filters);
                 break;
             default:
                 return res.status(400).json({ msg: 'نوع التقرير غير معروف' });
-
-            
         }
         res.json(reportData);
     } catch (error) {
@@ -48,16 +72,25 @@ function getCycleDates(year, month) {
 }
 
 async function generatePeriodicSummaryReport(filters) {
-    const { year, month, fromCycle, toCycle } = filters;
+    const { year, month, fromCycle, toCycle, collectorId } = filters; // 💡 إضافة collectorId هنا
 
     const allCycleDates = getCycleDates(year, month);
     const firstCycleStartDate = allCycleDates[fromCycle].start;
     
     // --- التعديل الرئيسي يبدأ هنا ---
 
+    const receiptQuery = { date: { $lt: allCycleDates[toCycle].end } };
+    const depositQuery = { depositDate: { $lt: allCycleDates[toCycle].end } };
+    
+    // 💡 تطبيق فلتر المحصل هنا أيضًا
+    if (collectorId) {
+        receiptQuery.collector = new mongoose.Types.ObjectId(collectorId);
+        depositQuery.collector = new mongoose.Types.ObjectId(collectorId);
+    }
+
     // 1. جلب كل العمليات (سندات وتوريدات) حتى نهاية الدورة المطلوبة
-    const allReceipts = await Receipt.find({ date: { $lt: allCycleDates[toCycle].end } }).populate('collector', '_id name').lean();
-    const allDeposits = await Deposit.find({ depositDate: { $lt: allCycleDates[toCycle].end } }).populate('collector', '_id name').lean();
+    const allReceipts = await Receipt.find(receiptQuery).populate('collector', '_id name').lean();
+    const allDeposits = await Deposit.find(depositQuery).populate('collector', '_id name').lean();
 
     // 2. تحديد المحصلين الذين لديهم نشاط واستخراج IDs الخاصة بهم
     const collectorIds = new Set();
@@ -66,7 +99,9 @@ async function generatePeriodicSummaryReport(filters) {
     });
     
     // 3. جلب بيانات المحصلين الكاملة (بما في ذلك الرصيد الافتتاحي) دفعة واحدة
-    const collectorsData = await Collector.find({ _id: { $in: [...collectorIds] } }).lean();
+    // 💡 التأكد من أننا نجلب فقط المحصلين الذين لديهم عمليات أو المحصل المحدد في الفلتر
+    const finalCollectorFilter = collectorId ? { _id: new mongoose.Types.ObjectId(collectorId) } : { _id: { $in: [...collectorIds] } };
+    const collectorsData = await Collector.find(finalCollectorFilter).lean();
 
     // 4. بناء خريطة للمحصلين تحتوي على بياناتهم الكاملة
     const collectorsMap = new Map();
@@ -115,11 +150,11 @@ async function generatePeriodicSummaryReport(filters) {
         });
         
         const subTotal = {
-             openingBalance: cycleRows.reduce((sum, r) => sum + r.openingBalance, 0),
-             assignmentCount: cycleRows.reduce((sum, r) => sum + r.assignmentCount, 0),
-             totalCollection: cycleRows.reduce((sum, r) => sum + r.totalCollection, 0),
-             totalDeposit: cycleRows.reduce((sum, r) => sum + r.totalDeposit, 0),
-             netAmount: cycleRows.reduce((sum, r) => sum + r.netAmount, 0),
+            openingBalance: cycleRows.reduce((sum, r) => sum + r.openingBalance, 0),
+            assignmentCount: cycleRows.reduce((sum, r) => sum + r.assignmentCount, 0),
+            totalCollection: cycleRows.reduce((sum, r) => sum + r.totalCollection, 0),
+            totalDeposit: cycleRows.reduce((sum, r) => sum + r.totalDeposit, 0),
+            netAmount: cycleRows.reduce((sum, r) => sum + r.netAmount, 0),
         };
 
         finalReportData.push({
@@ -136,17 +171,19 @@ async function generatePeriodicSummaryReport(filters) {
 
 // --- (بقية الكود الخاص بالتقرير التفصيلي يبقى كما هو بدون تغيير) ---
 async function generateDetailedPeriodicReport(filters) {
-    // ... no changes here
     const { startDate, endDate, collectorId } = filters;
     const finalStartDate = new Date(startDate);
     const finalEndDate = new Date(endDate);
     finalEndDate.setUTCHours(23, 59, 59, 999);
+    
     const queryConditions = {};
     if (collectorId) {
         queryConditions.collector = new mongoose.Types.ObjectId(collectorId);
     }
+
     const receipts = await Receipt.find({ ...queryConditions, date: { $gte: finalStartDate, $lte: finalEndDate } }).populate('collector', 'name').sort({ date: 1, receiptNumber: 1 });
     const deposits = await Deposit.find({ ...queryConditions, depositDate: { $gte: finalStartDate, $lte: finalEndDate } }).populate('collector', 'name');
+    
     const depositsByCollectorDate = new Map();
     deposits.forEach(d => {
         const dateStr = new Date(d.depositDate).toISOString().split('T')[0];
@@ -156,6 +193,7 @@ async function generateDetailedPeriodicReport(filters) {
         }
         depositsByCollectorDate.get(key).items.push(d);
     });
+
     const groupedReceipts = {};
     receipts.forEach(r => {
         const dateStr = new Date(r.date).toISOString().split('T')[0];
@@ -166,9 +204,11 @@ async function generateDetailedPeriodicReport(filters) {
         }
         groupedReceipts[groupKey].receipts.push(r);
     });
+
     let reportRows = [];
     const processedDepositKeys = new Set();
     const depositsShownForDay = new Set();
+    
     for (const group of Object.values(groupedReceipts)) {
         const totalAmount = group.receipts.reduce((sum, r) => sum + r.amount, 0);
         const depositKey = `${group.collectorId}_${group.date}`;
@@ -193,6 +233,7 @@ async function generateDetailedPeriodicReport(filters) {
             depositDate: group.date, notes: ''
         });
     }
+
     for (const [key, depositData] of depositsByCollectorDate.entries()) {
         if (!processedDepositKeys.has(key)) {
             const date = key.split('_')[1];

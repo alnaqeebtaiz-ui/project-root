@@ -7,7 +7,18 @@ const Collector = require('../models/Collector');
 const Notebook = require('../models/Notebook');
 const Fund = require('../models/Fund'); // <-- استيراد مودل الصندوق
 
-// @route   POST api/funds-reports/generate
+// 💡💡💡 سطر جديد تمت إضافته هنا: لاستيراد دوال الحماية 💡💡💡
+const { authenticateToken, authorizeRoles } = require('../middleware/authMiddleware');
+
+// 💡💡💡 سطر جديد تمت إضافته هنا: لتطبيق الحماية الأساسية على جميع المسارات في هذا الملف 💡💡💡
+// هذا يعني أن أي شخص يحاول الوصول لأي من مسارات تقارير الصناديق يجب أن يكون مسجل دخول (لديه توكن صالح).
+// بالإضافة إلى ذلك، يجب أن يكون لديه دور "admin" أو "manager".
+router.use(authenticateToken); 
+router.use(authorizeRoles('admin', 'manager')); // 💡💡💡 هذا السطر الجديد يفرض الأدوار 💡💡💡
+
+
+// @route   POST api/funds-reports/generate
+// 💡 ملاحظة: هذا المسار الآن محمي تلقائيًا بفضل `router.use` أعلاه.
 router.post('/generate', async (req, res) => {
     const { reportType, filters } = req.body;
     try {
@@ -30,7 +41,8 @@ router.post('/generate', async (req, res) => {
 async function generatePeriodicReport(filters) {
     const { year, month, fromCycle, toCycle } = filters;
     
-    const funds = await Fund.find().lean();
+    // 💡 يمكن إضافة فلتر fundId هنا إذا أردنا السماح للمستخدمين باختيار صندوق معين
+    const funds = await Fund.find().lean(); // حاليًا يجلب كل الصناديق
     const finalReport = [];
 
     for (let cycle = fromCycle; cycle <= toCycle; cycle++) {
@@ -122,8 +134,11 @@ async function generateAnnualReport(filters) {
             // 1. نحدد ما هي الدفاتر التي تم استخدامها في هذا الشهر
             const notebooksUsedStarts = [...new Set(receipts.map(r => Math.floor((r.receiptNumber - 1) / 50) * 50 + 1))];
             
-            // 2. نجلب بيانات هذه الدفاتر فقط
-            const notebooksData = await Notebook.find({ startNumber: { $in: notebooksUsedStarts } }).lean();
+            // 2. نجلب بيانات هذه الدفاتر فقط التي تتبع المحصلين ضمن الصندوق/الصناديق المختارة
+            const notebooksData = await Notebook.find({ 
+                startNumber: { $in: notebooksUsedStarts }, 
+                collectorId: { $in: collectorIds } // 💡 فلتر إضافي للتأكد من المحصلين
+            }).lean();
             
             // 3. نجمع عدد المفقودات من هذه الدفاتر
             missingCount = notebooksData.reduce((sum, n) => sum + n.missingReceipts.length, 0);
@@ -153,8 +168,6 @@ async function generateAnnualReport(filters) {
 }
     
 
-
-
 // --- دوال مساعدة ---
 function getCycleDates(year, month, cycle) {
     const jsMonth = month - 1;
@@ -179,4 +192,3 @@ async function calculateBalanceUntil(collectorIds, date) {
 }
 
 module.exports = router;
-

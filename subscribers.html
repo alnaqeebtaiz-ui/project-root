@@ -120,7 +120,8 @@
     <div id="toast" class="toast-notification"><p id="toastMessage"></p></div>
 
     <script type="module">
-        import { getSubscriberById, addSubscriber, updateSubscriber, deleteSubscriber, batchAddSubscribers } from './assets/js/subscribers-service.js';
+        // تم تغيير طريقة الاستيراد لتشمل getSubscribers
+        import { getSubscribers, getSubscriberById, addSubscriber, updateSubscriber, deleteSubscriber, batchAddSubscribers } from './assets/js/subscribers-service.js';
         import { importSubscribersFromExcel } from './assets/js/import-excel.js';
         import { showToast, sanitizeInput } from './assets/js/utils.js';
 
@@ -152,18 +153,15 @@
             currentPage = page;
 
             try {
-                // Fetch paged data from the server
-                // السطر الصحيح
-                const response = await fetch(`http://localhost:3000/api/subscribers?page=${page}&limit=${PAGE_LIMIT}&search=${search}`);
-                if (!response.ok) throw new Error('فشل في جلب البيانات من الخادم');
-                
-                const data = await response.json();
+                // استخدام دالة getSubscribers من الـ service التي ترسل التوكن
+                const data = await getSubscribers(page, PAGE_LIMIT, search); // 👈 تم التعديل هنا
                 
                 displaySubscribers(data.subscribers);
                 updatePaginationControls(data);
 
             } catch (error) {
                 tableBody.innerHTML = `<tr><td colspan="5" style="text-align: center; padding: 2rem; color: red;">${error.message}</td></tr>`;
+                showToast(error.message || 'فشل تحميل البيانات.', 'error');
             }
         }
 
@@ -319,11 +317,8 @@
             btn.disabled = true;
             btn.textContent = 'جاري التجهيز...';
             try {
-                // Fetch ALL subscribers matching the current search term
-                // السطر الصحيح
-                const response = await fetch(`http://localhost:3000/api/subscribers?search=${currentSearchTerm}&limit=0`);
-                if (!response.ok) throw new Error('فشل تحميل بيانات التصدير');
-                const data = await response.json();
+                // استخدام دالة getSubscribers من الـ service لجلب كل شيء (limit=0)
+                const data = await getSubscribers(1, 0, currentSearchTerm); // 👈 تم التعديل هنا
                 const subscribersToExport = data.subscribers;
 
                 if (subscribersToExport.length === 0) {
@@ -345,7 +340,7 @@
                 showToast('تم تصدير الكشف بنجاح', 'success');
 
             } catch(error) {
-                showToast(error.message, 'error');
+                showToast(error.message || 'فشل تصدير الكشف.', 'error');
             } finally {
                 btn.disabled = false;
                 btn.textContent = 'تصدير كشف';

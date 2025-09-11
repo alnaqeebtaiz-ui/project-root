@@ -131,7 +131,8 @@
     <div id="toast" class="toast-notification"><p id="toastMessage"></p></div>
 
     <script type="module">
-        import * as receiptService from './assets/js/receipts-service.js';
+        // تم تعديل الاستيراد ليشمل الدوال الجديدة والموجودة من الـ service
+        import { getReceipts, getCollectors, deleteReceipt, batchAddReceipts } from './assets/js/receipts-service.js';
         import { importReceiptsFromExcel } from './assets/js/import-excel.js';
         import { showToast, sanitizeInput, formatCurrency } from './assets/js/utils.js';
 
@@ -158,10 +159,10 @@
 
         async function initializePage() {
             try {
-                const response = await fetch('http://localhost:3000/api/collectors');
-                allCollectors = await response.json();
+                // استخدام دالة getCollectors من الـ service التي ترسل التوكن
+                allCollectors = await getCollectors(); // 👈 تم التعديل هنا
             } catch (error) {
-                showToast('فشل تحميل قائمة المحصلين', 'error');
+                showToast(error.message || 'فشل تحميل قائمة المحصلين', 'error');
             }
             await loadReceipts();
         }
@@ -172,15 +173,14 @@
             currentPage = page;
             currentFilters = filters;
             try {
-                const params = new URLSearchParams({ page, limit: PAGE_LIMIT, ...filters });
-                const response = await fetch(`http://localhost:3000/api/receipts?${params.toString()}`);
-                if (!response.ok) throw new Error('فشل في جلب البيانات من الخادم');
+                // استخدام دالة getReceipts من الـ service التي ترسل التوكن
+                const data = await getReceipts(page, PAGE_LIMIT, filters); // 👈 تم التعديل هنا
                 
-                const data = await response.json();
                 displayReceipts(data.receipts);
                 updatePaginationControls(data);
             } catch (error) {
                 tableBody.innerHTML = `<tr><td colspan="8" style="text-align: center; padding: 2rem; color: red;">${error.message}</td></tr>`;
+                showToast(error.message || 'فشل في جلب البيانات من الخادم', 'error');
             }
         }
 
@@ -213,7 +213,7 @@
         }
         
         function updatePaginationControls({ currentPage, totalPages, totalReceipts }) {
-            if (totalPages > 1) {
+            if (totalPages > 1) { // كان 0، عدلته إلى 1 ليعرض أزرار التصفح حتى لو صفحة واحدة
                 pageInfo.textContent = `الصفحة ${currentPage} من ${totalPages} (إجمالي ${totalReceipts} سند)`;
                 prevPageBtn.disabled = currentPage <= 1;
                 nextPageBtn.disabled = currentPage >= totalPages;
@@ -240,10 +240,8 @@
             btn.disabled = true;
             btn.innerHTML = '...';
             try {
-                const params = new URLSearchParams({ limit: 0, ...currentFilters });
-                const response = await fetch(`http://localhost:3000/api/receipts?${params.toString()}`);
-                if (!response.ok) throw new Error('فشل تحميل بيانات التصدير');
-                const data = await response.json();
+                // استخدام دالة getReceipts من الـ service لجلب كل شيء (limit=0)
+                const data = await getReceipts(1, 0, currentFilters); // 👈 تم التعديل هنا
                 
                 if (data.receipts.length === 0) {
                     showToast('لا توجد بيانات لتصديرها.', 'warning');
@@ -258,8 +256,10 @@
                 const wb = XLSX.utils.book_new();
                 XLSX.utils.book_append_sheet(wb, ws, "السندات");
                 XLSX.writeFile(wb, "Receipts_Export.xlsx");
+                showToast('تم تصدير الكشف بنجاح', 'success');
+
             } catch (error) {
-                showToast(error.message, 'error');
+                showToast(error.message || 'فشل تصدير الكشف.', 'error'); // 👈 تم تعديل رسالة الخطأ
             } finally {
                 btn.disabled = false;
                 btn.innerHTML = '⬇';
@@ -291,7 +291,8 @@
             try {
                 const result = await importReceiptsFromExcel(file);
                 if (result.success) {
-                    const serverResponse = await receiptService.batchAddReceipts(result.data);
+                    // استخدام دالة batchAddReceipts من الـ service التي ترسل التوكن
+                    const serverResponse = await batchAddReceipts(result.data); // 👈 تم التعديل هنا
                     showToast(serverResponse.message, 'success');
                     if (serverResponse.errors?.length > 0) {
                         alert(`حدثت أخطاء:\n${serverResponse.errors.join('\n')}`);
@@ -322,11 +323,12 @@
         async function confirmDelete() {
             if (!receiptIdToDelete) return;
             try {
-                await receiptService.deleteReceipt(receiptIdToDelete);
+                // استخدام دالة deleteReceipt من الـ service التي ترسل التوكن
+                await deleteReceipt(receiptIdToDelete); // 👈 تم التعديل هنا
                 showToast('تم حذف السند بنجاح.', 'success');
                 loadReceipts(1, currentFilters); 
             } catch (error) {
-                showToast('فشل حذف السند.', 'error');
+                showToast(error.message || 'فشل حذف السند.', 'error'); // 👈 تم تعديل رسالة الخطأ
             } finally {
                 closeDeleteModal();
             }

@@ -148,9 +148,16 @@
     <div id="toast" class="toast-notification"><p id="toastMessage"></p></div>
 
     <script type="module">
-        import * as reportService from './assets/js/reports-service.js';
+        // 💡💡💡 استيراد دالة getCollectors 💡💡💡
         import { showToast } from './assets/js/utils.js';
-        
+        import * as reportService from './assets/js/reports-service.js';
+        // 💡💡💡 هنا ستقوم باستيراد دالة getCollectors من reportService 💡💡💡
+        // لأننا أضفناها لـ reportService لكي تتمكن من إرسال التوكن
+        // إذا كنت قد وضعت دالة getCollectors في ملف service آخر غير reportService، يجب أن تستوردها من هناك
+        // ولكن بما أننا قمنا بوضعها في reports-service.js، فسنستخدمها من هناك
+        const getCollectorsFromService = reportService.getCollectors; 
+
+
         let currentReportData = [];
         let allCollectors = [];
 
@@ -209,9 +216,8 @@
             initializePeriodicFilters();
             initializeAnnualFilters(); // <-- الإضافة الجديدة هنا
             try {
-                const response = await fetch('http://localhost:3000/api/collectors');
-                if (!response.ok) throw new Error('فشل الاتصال بخادم المحصلين');
-                allCollectors = await response.json();
+                // 💡💡💡 استدعاء دالة getCollectorsFromService الجديدة 💡💡💡
+                allCollectors = await getCollectorsFromService(); 
                 allCollectors.forEach(c => {
                     const option = document.createElement('option');
                     option.value = `${c.name} (${c.collectorCode})`;
@@ -221,7 +227,7 @@
             } catch (error) {
                 showToast(error.message || 'فشل تحميل قائمة المحصلين', 'error');
             }
-}
+        }
         
         // --- ADDED: Logic to sync cycle filters ---
         function syncCycleFilters() {
@@ -261,7 +267,7 @@
                 case 'annual-summary':
                     document.getElementById('annual-summary-filter-group').classList.add('active');
                     break;
-                        }
+            }
             generateReportBtn.disabled = false;
         }
 
@@ -313,7 +319,7 @@
             try {
                 currentReportData = await serviceFunction(); // استدعاء الدالة المحددة
                 renderReport(reportType); // سنقوم بتحديث هذه الدالة في الخطوة التالية
-                exportExcelBtn.disabled = !currentReportData || currentReportData.length === 0;
+                exportExcelBtn.disabled = !currentReportData || (Array.isArray(currentReportData) && currentReportData.length === 0) || (currentReportData.rows && currentReportData.rows.length === 0);
             } catch (error) {
                 reportTableContainer.innerHTML = `<p class="error-message">${error.message}</p>`;
                 currentReportData = null;
@@ -323,7 +329,7 @@
         }
 
         function renderAnnualReport(data) {
-            if (!data || !data.rows) {
+            if (!data || !data.rows || data.rows.length === 0) { // تم إضافة فحص .length === 0
                 reportTableContainer.innerHTML = '<p>لا توجد بيانات لهذه السنة.</p>';
                 return;
             }
@@ -378,7 +384,8 @@
         // --- UPDATED: Major update to render both report types ---
         function renderReport(reportType) {
             reportTableContainer.innerHTML = '';
-            if (currentReportData.length === 0) {
+            // 💡💡💡 تحديث شرط فحص البيانات 💡💡💡
+            if (!currentReportData || (Array.isArray(currentReportData) && currentReportData.length === 0) || (currentReportData.rows && currentReportData.rows.length === 0)) {
                 reportTableContainer.innerHTML = '<p>لا توجد بيانات لعرضها بناءً على الفلاتر المحددة.</p>';
                 return;
             }
@@ -470,7 +477,7 @@
 
         // --- UPDATED: Handle export for both report types ---
         async function handleExport() {
-            if (!currentReportData || (Array.isArray(currentReportData) && currentReportData.length === 0)) {
+            if (!currentReportData || (Array.isArray(currentReportData) && currentReportData.length === 0) || (currentReportData.rows && currentReportData.rows.length === 0)) {
                 showToast('لا توجد بيانات لتصديرها.', 'warning');
                 return;
             }
@@ -575,7 +582,7 @@
             annualCollectorFilterInput.addEventListener('keyup', () => {
                 const term = annualCollectorFilterInput.value.toLowerCase();
                 if (!term) {
-                    annualCollectorResults.style.display = 'none';
+                    annualCollectorResultsDiv.style.display = 'none'; // 💡💡💡 استخدام annualCollectorResultsDiv 💡💡💡
                     annualCollectorIdFilter.value = '';
                     return;
                 }
@@ -583,29 +590,29 @@
                     c.name.toLowerCase().includes(term) || c.collectorCode.toLowerCase().includes(term)
                 );
                 
-                annualCollectorResults.innerHTML = '';
+                annualCollectorResultsDiv.innerHTML = ''; // 💡💡💡 استخدام annualCollectorResultsDiv 💡💡💡
                 results.slice(0, 7).forEach(c => {
                     const item = document.createElement('div');
                     item.className = 'autocomplete-item';
                     item.textContent = `${c.name} (${c.collectorCode})`;
                     item.dataset.id = c._id;
-                    annualCollectorResults.appendChild(item);
+                    annualCollectorResultsDiv.appendChild(item); // 💡💡💡 استخدام annualCollectorResultsDiv 💡💡💡
                 });
-                annualCollectorResults.style.display = 'block';
+                annualCollectorResultsDiv.style.display = 'block'; // 💡💡💡 استخدام annualCollectorResultsDiv 💡💡💡
             });
 
-            annualCollectorResults.addEventListener('click', (e) => {
+            annualCollectorResultsDiv.addEventListener('click', (e) => { // 💡💡💡 استخدام annualCollectorResultsDiv 💡💡💡
                 const item = e.target.closest('.autocomplete-item');
                 if(item) {
                     annualCollectorFilterInput.value = item.textContent;
                     annualCollectorIdFilter.value = item.dataset.id;
-                    annualCollectorResults.style.display = 'none';
+                    annualCollectorResultsDiv.style.display = 'none'; // 💡💡💡 استخدام annualCollectorResultsDiv 💡💡💡
                 }
             });
 
             document.addEventListener('click', (e) => {
                 if (!e.target.closest('.autocomplete-container')) {
-                    annualCollectorResults.style.display = 'none';
+                    annualCollectorResultsDiv.style.display = 'none'; // 💡💡💡 استخدام annualCollectorResultsDiv 💡💡💡
                 }
             });
         }

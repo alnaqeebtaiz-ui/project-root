@@ -4,7 +4,18 @@ const Receipt = require('../models/Receipt');
 const Subscriber = require('../models/Subscriber');
 const mongoose = require('mongoose');
 
+// 💡💡💡 سطر جديد تمت إضافته هنا: لاستيراد دوال الحماية 💡💡💡
+const { authenticateToken, authorizeRoles } = require('../middleware/authMiddleware');
+
+// 💡💡💡 سطر جديد تمت إضافته هنا: لتطبيق الحماية الأساسية على جميع المسارات في هذا الملف 💡💡💡
+// هذا يعني أن أي شخص يحاول الوصول لأي من مسارات تقارير المشتركين يجب أن يكون مسجل دخول (لديه توكن صالح).
+// بالإضافة إلى ذلك، يجب أن يكون لديه دور "admin" أو "manager".
+router.use(authenticateToken); 
+router.use(authorizeRoles('admin', 'manager')); // 💡💡💡 هذا السطر الجديد يفرض الأدوار 💡💡💡
+
+
 // --- 1. مسار جلب آخر سداد لكل المشتركين ---
+// 💡 ملاحظة: هذا المسار الآن محمي تلقائيًا بفضل `router.use` أعلاه.
 router.get('/latest-payments', async (req, res) => {
     try {
         const latestPayments = await Receipt.aggregate([
@@ -13,10 +24,10 @@ router.get('/latest-payments', async (req, res) => {
                 $group: {
                     _id: "$subscriber",
                     latestPaymentDate: { $max: "$date" }, // تاريخ آخر سداد
-                    latestPaymentAmount: {
-                        $first: "$amount", // مبلغ آخر سداد (قد يحتاج لـ $sort قبل $first إذا أردنا آخر سند فعليًا)
-                        // الطريقة الأكثر دقة: استخدام $last بعد $sort
-                    }
+                    // لتحقيق "آخر سداد فعلي" بدقة أكبر، نحتاج لـ $sort و $first/$last
+                    // ولكن لتجنب التعقيد الزائد الآن، سنبقيها هكذا ونفترض أن $max date يكفي
+                    // ولجلب المبلغ المقابل لأحدث تاريخ، نحتاج لتطبيق $sort قبل الـ $group على كامل المستندات
+                    // ثم $group للحصول على الأول/الأخير
                 }
             },
             // دمج معلومات المشتركين
@@ -31,6 +42,35 @@ router.get('/latest-payments', async (req, res) => {
             {
                 $unwind: '$subscriberInfo' // فك مصفوفة معلومات المشترك
             },
+            // الآن لإضافة مبلغ آخر سداد بشكل صحيح، نحتاج لخطوة إضافية
+            {
+                $lookup: {
+                    from: 'receipts',
+                    let: { subId: '$_id', latestDate: '$latestPaymentDate' },
+                    pipeline: [
+                        {
+                            $match: {
+                                $expr: {
+                                    $and: [
+                                        { $eq: ['$subscriber', '$$subId'] },
+                                        { $eq: ['$date', '$$latestDate'] }
+                                    ]
+                                }
+                            }
+                        },
+                        { $sort: { createdAt: -1 } }, // إذا كان هناك عدة سندات بنفس التاريخ، خذ الأحدث إنشاءً
+                        { $limit: 1 },
+                        { $project: { amount: 1, _id: 0 } }
+                    ],
+                    as: 'latestReceiptDetails'
+                }
+            },
+            {
+                $unwind: {
+                    path: '$latestReceiptDetails',
+                    preserveNullAndEmptyArrays: true // للحفاظ على المشتركين الذين ليس لديهم سندات
+                }
+            },
             // إعادة تشكيل النتائج
             {
                 $project: {
@@ -39,17 +79,13 @@ router.get('/latest-payments', async (req, res) => {
                     subscriberName: '$subscriberInfo.name',
                     subscriberPhone: '$subscriberInfo.phone',
                     latestPaymentDate: 1,
-                    latestPaymentAmount: 1
+                    latestPaymentAmount: { $ifNull: ['$latestReceiptDetails.amount', 0] } // استخدام المبلغ من التفاصيل الجديدة
                 }
             },
             {
                 $sort: { subscriberName: 1 } // ترتيب أبجدي حسب اسم المشترك
             }
         ]);
-
-        // ملاحظة: الـ $first لـ latestPaymentAmount قد لا يكون صحيحًا 100% إذا كانت هناك عدة سندات بنفس التاريخ الأقصى.
-        // لتحقيق "آخر سداد" بدقة أكبر (أي آخر سند تم إدخاله)، يتطلب ذلك تجميعًا أكثر تعقيدًا باستخدام $push و $last.
-        // لكن لهذا الغرض، هذا كافٍ كبداية.
 
         res.json(latestPayments);
     } catch (error) {
@@ -59,6 +95,7 @@ router.get('/latest-payments', async (req, res) => {
 });
 
 // --- 2. مسار جلب كشف حساب لمشترك محدد خلال فترة زمنية ---
+// 💡 ملاحظة: هذا المسار الآن محمي تلقائيًا بفضل `router.use` أعلاه.
 router.post('/statement', async (req, res) => {
     const { subscriberId, startDate, endDate } = req.body;
 
@@ -102,6 +139,7 @@ router.post('/statement', async (req, res) => {
 });
 
 // --- 3. مسار جلب آخر سداد لمشترك واحد ---
+// 💡 ملاحظة: هذا المسار الآن محمي تلقائيًا بفضل `router.use` أعلاه.
 router.get('/latest-payment/:subscriberId', async (req, res) => {
     const { subscriberId } = req.params;
 
@@ -116,8 +154,8 @@ router.get('/latest-payment/:subscriberId', async (req, res) => {
         }
 
         const latestPayment = await Receipt.findOne({ subscriber: subscriberId })
-                                           .sort({ date: -1, createdAt: -1 }) // الأحدث تاريخًا ثم الأحدث إنشاءً
-                                           .select('amount date receiptNumber notes');
+                                         .sort({ date: -1, createdAt: -1 }) // الأحدث تاريخًا ثم الأحدث إنشاءً
+                                         .select('amount date receiptNumber notes');
 
         if (!latestPayment) {
             return res.json({

@@ -5,9 +5,18 @@ const Notebook = require('../models/Notebook');
 const mongoose = require('mongoose');
 const Collector = require('../models/Collector');
 
+// 💡💡💡 سطر جديد تمت إضافته هنا: لاستيراد دوال الحماية 💡💡💡
+const { authenticateToken, authorizeRoles } = require('../middleware/authMiddleware');
+
+// 💡💡💡 سطر جديد تمت إضافته هنا: لتطبيق الحماية الأساسية على جميع المسارات في هذا الملف 💡💡💡
+// هذا يعني أن أي شخص يحاول الوصول لأي من مسارات الدفاتر يجب أن يكون مسجل دخول (لديه توكن صالح).
+router.use(authenticateToken); 
+
 
 // --- تم تعديل هذا المسار بالكامل ليدعم "المزامنة الذكية" مع إضافة التاريخ التقديري ---
-router.post('/sync', async (req, res) => {
+// 💡💡💡 تمت إضافة `authorizeRoles('admin', 'manager')` هنا 💡💡💡
+// هذا يعني أن عملية المزامنة تتطلب أن يكون المستخدم "مدير" أو "مشرف".
+router.post('/sync', authorizeRoles('admin', 'manager'), async (req, res) => {
     try {
         const lastNotebookUpdate = await Notebook.findOne().sort({ updatedAt: -1 });
         let receiptsToProcess;
@@ -107,6 +116,7 @@ router.post('/sync', async (req, res) => {
 });
 
 // --- تم تعديل هذا المسار بالكامل لدعم العرض المجدول والترقيم ---
+// 💡 ملاحظة: هذا المسار الآن محمي بشكل تلقائي بفضل `router.use(authenticateToken);` أعلاه.
 router.get('/', async (req, res) => {
     try {
         const page = parseInt(req.query.page) || 1;
@@ -170,13 +180,14 @@ router.get('/', async (req, res) => {
 // --- نهاية التعديل ---
 
 // --- مسار جديد لجلب تفاصيل دفتر واحد (لعرض البطاقة) ---
+// 💡 ملاحظة: هذا المسار الآن محمي بشكل تلقائي بفضل `router.use(authenticateToken);` أعلاه.
 router.get('/:id/details', async (req, res) => {
     try {
         const notebook = await Notebook.findById(req.params.id)
-                                        .populate({ 
-                                            path: 'collectorId', 
-                                            select: 'name collectorCode' 
-                                        });
+                                    .populate({ 
+                                        path: 'collectorId', 
+                                        select: 'name collectorCode' 
+                                    });
 
         if (!notebook) {
             return res.status(404).json({ message: 'الدفتر غير موجود' });
@@ -199,7 +210,9 @@ router.get('/:id/details', async (req, res) => {
 });
 
 // --- المسارات التالية تبقى كما هي ---
-router.put('/missing/:notebookId/:receiptNumber', async (req, res) => {
+// 💡💡💡 تمت إضافة `authorizeRoles('admin', 'manager')` هنا 💡💡💡
+// هذا يعني أن تحديث حالة السندات المفقودة يتطلب أن يكون المستخدم "مدير" أو "مشرف".
+router.put('/missing/:notebookId/:receiptNumber', authorizeRoles('admin', 'manager'), async (req, res) => {
     const { status, notes } = req.body;
     try {
         const notebook = await Notebook.findById(req.params.notebookId);
@@ -214,6 +227,7 @@ router.put('/missing/:notebookId/:receiptNumber', async (req, res) => {
 });
 
 // @route   GET api/notebooks/find-receipt/:receiptNumber
+// 💡 ملاحظة: هذا المسار الآن محمي بشكل تلقائي بفضل `router.use(authenticateToken);` أعلاه.
 router.get('/find-receipt/:receiptNumber', async (req, res) => {
     try {
         const receiptNumber = parseInt(req.params.receiptNumber, 10);
@@ -281,7 +295,7 @@ router.get('/find-receipt/:receiptNumber', async (req, res) => {
                 searchResult = { status: 'قيد الانتظار', receipt: { receiptNumber, status: 'قيد الانتظار' }, notebookSummary };
             }
         } else {
-             searchResult = { status: 'غير موجود', receipt: { receiptNumber }, notebookSummary: null };
+            searchResult = { status: 'غير موجود', receipt: { receiptNumber }, notebookSummary: null };
         }
 
         res.json(searchResult);
@@ -291,6 +305,5 @@ router.get('/find-receipt/:receiptNumber', async (req, res) => {
         res.status(500).send('Server Error');
     }
 });
-
 
 module.exports = router;

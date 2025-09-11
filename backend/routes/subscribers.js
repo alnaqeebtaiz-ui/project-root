@@ -5,10 +5,14 @@ const router = express.Router();
 // استيراد "نموذج المشترك" الذي أنشأناه
 const Subscriber = require('../models/Subscriber');
 
+// 💡 سطر جديد: استيراد الـ middleware للمصادقة والصلاحيات
+const { authenticateToken, authorizeRoles } = require('../middleware/authMiddleware');
+
 // --- تعريف المسارات (قائمة الطعام) ---
-// --- الإضافة الجديدة والمهمة تبدأ هنا ---
+
 // المسار 1: للبحث الذكي عن المشتركين (يجب أن يأتي قبل المسار العام /:id)
-router.get('/search', async (req, res) => {
+// 💡 إضافة: حماية المسار بـ authenticateToken
+router.get('/search', authenticateToken, async (req, res) => {
     try {
         const searchTerm = req.query.q || '';
         if (searchTerm.length < 2) {
@@ -32,13 +36,12 @@ router.get('/search', async (req, res) => {
         res.status(500).json({ message: 'حدث خطأ في الخادم أثناء البحث.' });
     }
 });
-// --- الإضافة الجديدة تنتهي هنا ---
-// --- تم تعديل هذا المسار لدعم حالة التصدير الكامل ---
+
 // المسار 1: جلب المشتركين مع دعم الترقيم والبحث (GET /api/subscribers)
-router.get('/', async (req, res) => {
+// 💡 إضافة: حماية المسار بـ authenticateToken
+router.get('/', authenticateToken, async (req, res) => {
     try {
         const page = parseInt(req.query.page) || 1;
-        // تعديل: إذا كان limit=0، اعتبره طلبًا للتصدير
         const limit = parseInt(req.query.limit) === 0 ? 0 : (parseInt(req.query.limit) || 50);
         const search = req.query.search || '';
 
@@ -74,12 +77,10 @@ router.get('/', async (req, res) => {
         res.status(500).json({ message: 'حدث خطأ في الخادم' });
     }
 });
-// --- نهاية التعديل ----
-
 
 // المسار 2: جلب مشترك واحد بواسطة ID (GET /api/subscribers/:id)
-// ... (يبقى كما هو بدون تغيير)
-router.get('/:id', async (req, res) => {
+// 💡 إضافة: حماية المسار بـ authenticateToken
+router.get('/:id', authenticateToken, async (req, res) => {
     try {
         const subscriber = await Subscriber.findById(req.params.id);
         if (!subscriber) {
@@ -93,8 +94,8 @@ router.get('/:id', async (req, res) => {
 
 
 // المسار 3: إضافة مشترك جديد (POST /api/subscribers)
-// ... (يبقى كما هو بدون تغيير)
-router.post('/', async (req, res) => {
+// 💡 إضافة: حماية المسار بـ authenticateToken و authorizeRoles لدور 'admin' و 'manager'
+router.post('/', authenticateToken, authorizeRoles('admin', 'manager'), async (req, res) => {
     const subscriber = new Subscriber({
         name: req.body.name,
         address: req.body.address,
@@ -109,9 +110,9 @@ router.post('/', async (req, res) => {
     }
 });
 
-// --- تم تعديل هذا المسار لمنع تكرار البيانات ---
 // المسار 4: إضافة مجموعة مشتركين دفعة واحدة (POST /api/subscribers/batch)
-router.post('/batch', async (req, res) => {
+// 💡 إضافة: حماية المسار بـ authenticateToken و authorizeRoles لدور 'admin' و 'manager'
+router.post('/batch', authenticateToken, authorizeRoles('admin', 'manager'), async (req, res) => {
     const subscribersToImport = req.body;
 
     if (!Array.isArray(subscribersToImport) || subscribersToImport.length === 0) {
@@ -147,12 +148,10 @@ router.post('/batch', async (req, res) => {
         res.status(500).json({ message: 'حدث خطأ أثناء استيراد البيانات.' });
     }
 });
-// --- نهاية التعديل ---
-
 
 // المسار 5: تحديث بيانات مشترك (PATCH /api/subscribers/:id)
-// ... (يبقى كما هو بدون تغيير)
-router.patch('/:id', async (req, res) => {
+// 💡 إضافة: حماية المسار بـ authenticateToken و authorizeRoles لدور 'admin' و 'manager'
+router.patch('/:id', authenticateToken, authorizeRoles('admin', 'manager'), async (req, res) => {
     try {
         const updatedSubscriber = await Subscriber.findByIdAndUpdate(
             req.params.id, 
@@ -169,8 +168,8 @@ router.patch('/:id', async (req, res) => {
 });
 
 // المسار 6: حذف مشترك (DELETE /api/subscribers/:id)
-// ... (يبقى كما هو بدون تغيير)
-router.delete('/:id', async (req, res) => {
+// 💡 إضافة: حماية المسار بـ authenticateToken و authorizeRoles لدور 'admin' فقط
+router.delete('/:id', authenticateToken, authorizeRoles('admin'), async (req, res) => {
     try {
         const deletedSubscriber = await Subscriber.findByIdAndDelete(req.params.id);
         if (!deletedSubscriber) {

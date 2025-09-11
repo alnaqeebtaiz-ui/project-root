@@ -8,6 +8,13 @@ const Collector = require('../models/Collector');
 const Subscriber = require('../models/Subscriber');
 const mongoose = require('mongoose');
 
+// 💡💡💡 سطر جديد تمت إضافته هنا: لاستيراد دوال الحماية 💡💡💡
+const { authenticateToken, authorizeRoles } = require('../middleware/authMiddleware');
+
+// 💡💡💡 سطر جديد تمت إضافته هنا: لتطبيق الحماية الأساسية على جميع المسارات في هذا الملف 💡💡💡
+// هذا يعني أن أي شخص يحاول الوصول لأي من مسارات السندات يجب أن يكون مسجل دخول (لديه توكن صالح).
+router.use(authenticateToken);
+
 // --- دالة تحويل Excel إلى JS Date (تبقى كما هي) ---
 function excelDateToJSDate(serial) {
     const utc_days = Math.floor(serial - 25569);
@@ -32,6 +39,7 @@ function excelDateToJSDate(serial) {
 }
 
 // --- المسار 1: جلب السندات (تم تعديله بالكامل لدعم الترقيم والفلاتر المتقدمة) ---
+// 💡 ملاحظة: هذا المسار الآن محمي بشكل تلقائي بفضل `router.use(authenticateToken);` أعلاه.
 router.get('/', async (req, res) => {
     try {
         const page = parseInt(req.query.page) || 1;
@@ -95,8 +103,10 @@ router.get('/', async (req, res) => {
     }
 });
 
-// --- المسار 2: استيراد كشف تحصيل دفعة واحدة (يبقى كما هو بدون تغيير) ---
-router.post('/batch', async (req, res) => {
+// --- المسار 2: استيراد كشف تحصيل دفعة واحدة ---
+// 💡💡💡 تمت إضافة `authorizeRoles('admin', 'manager')` هنا 💡💡💡
+// هذا يعني أن استيراد الدفعات يتطلب أن يكون المستخدم "مدير" أو "مشرف".
+router.post('/batch', authorizeRoles('admin', 'manager'), async (req, res) => {
     const rows = req.body;
     if (!Array.isArray(rows) || rows.length === 0) {
         return res.status(400).json({ message: 'البيانات المرسلة غير صالحة.' });
@@ -183,8 +193,10 @@ router.post('/batch', async (req, res) => {
     }
 });
 
-// --- المسار 3: إضافة سند يدوي (يبقى كما هو بدون تغيير) ---
-router.post('/', async (req, res) => {
+// --- المسار 3: إضافة سند يدوي ---
+// 💡💡💡 تمت إضافة `authorizeRoles('admin', 'manager', 'collector')` هنا 💡💡💡
+// هذا يعني أن إضافة سند يدوي يتطلب أن يكون المستخدم "مدير" أو "مشرف" أو "محصل" (مسجل دخول ولديه هذا الدور).
+router.post('/', authorizeRoles('admin', 'manager', 'collector'), async (req, res) => {
     const receipt = new Receipt({
         receiptNumber: req.body.receiptNumber,
         amount: req.body.amount,
@@ -201,8 +213,10 @@ router.post('/', async (req, res) => {
     }
 });
 
-// --- المسار 4: تحديث سند (يبقى كما هو بدون تغيير) ---
-router.patch('/:id', async (req, res) => {
+// --- المسار 4: تحديث سند ---
+// 💡💡💡 تمت إضافة `authorizeRoles('admin', 'manager')` هنا 💡💡💡
+// هذا يعني أن تحديث سند يتطلب أن يكون المستخدم "مدير" أو "مشرف".
+router.patch('/:id', authorizeRoles('admin', 'manager'), async (req, res) => {
     try {
         const updatedReceipt = await Receipt.findByIdAndUpdate(
             req.params.id,
@@ -216,8 +230,10 @@ router.patch('/:id', async (req, res) => {
     }
 });
 
-// --- المسار 5: حذف سند (يبقى كما هو بدون تغيير) ---
-router.delete('/:id', async (req, res) => {
+// --- المسار 5: حذف سند ---
+// 💡💡💡 تمت إضافة `authorizeRoles('admin')` هنا 💡💡💡
+// هذا يعني أن حذف سند يتطلب أن يكون المستخدم "مدير" فقط.
+router.delete('/:id', authorizeRoles('admin'), async (req, res) => {
     try {
         const deletedReceipt = await Receipt.findByIdAndDelete(req.params.id);
         if (!deletedReceipt) return res.status(404).json({ message: 'لم يتم العثور على السند' });

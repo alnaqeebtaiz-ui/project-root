@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>النسخ الاحتياطي - نظام إدارة الفواتير</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.1.1/css/all.min.css">
+    <link rel="stylesheet" href="assets/css/styles.css">
+    <style>
+        /* --- تنسيقات خاصة بالصفحة --- */
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background-color: #f4f7fc;
+            margin: 0;
+        }
+        .backup-card {
+            background-color: #ffffff;
+            padding: 50px;
+            border-radius: 15px;
+            text-align: center;
+            max-width: 600px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.08);
+            border: 1px solid #e9ecef;
+        }
+        .backup-card h1 { margin-bottom: 15px; color: #343a40; }
+        .backup-card p { margin-bottom: 30px; color: #6c757d; line-height: 1.7; }
+        .btn-backup { font-size: 1.2rem; padding: 15px 30px; font-weight: bold; }
+        .progress-container {
+            width: 100%; background-color: #e9ecef; border-radius: 25px;
+            margin-top: 20px; display: none;
+            overflow: hidden;
+        }
+        .progress-bar {
+            width: 0%; height: 20px; background-color: #007bff;
+            border-radius: 25px; text-align: center; line-height: 20px;
+            color: white; font-size: 12px; transition: width 0.5s ease-in-out;
+            white-space: nowrap;
+        }
+        #progress-text { margin-top: 10px; color: #495057; font-weight: bold; display: none; }
+
+        /* تنسيقات Toast (إذا لم تكن معرفة بالفعل في styles.css) */
+        .toast-notification {
+            visibility: hidden;
+            min-width: 250px;
+            margin-left: -125px;
+            background-color: #333;
+            color: #fff;
+            text-align: center;
+            border-radius: 2px;
+            padding: 16px;
+            position: fixed;
+            z-index: 1;
+            left: 50%;
+            bottom: 30px;
+            font-size: 17px;
+            white-space: nowrap;
+        }
+
+        .toast-notification.show {
+            visibility: visible;
+            -webkit-animation: fadein 0.5s, fadeout 0.5s 2.5s;
+            animation: fadein 0.5s, fadeout 0.5s 2.5s;
+        }
+
+        @-webkit-keyframes fadein {
+            from {bottom: 0; opacity: 0;} 
+            to {bottom: 30px; opacity: 1;}
+        }
+
+        @keyframes fadein {
+            from {bottom: 0; opacity: 0;}
+            to {bottom: 30px; opacity: 1;}
+        }
+
+        @-webkit-keyframes fadeout {
+            from {bottom: 30px; opacity: 1;} 
+            to {bottom: 0; opacity: 0;}
+        }
+
+        @keyframes fadeout {
+            from {bottom: 30px; opacity: 1;}
+            to {bottom: 0; opacity: 0;}
+        }
+    </style>
+</head>
+<body>
+    <div class="backup-card">
+        <i class="fas fa-database fa-3x" style="color: #007bff; margin-bottom: 20px;"></i>
+        <h1>إنشاء نسخة احتياطية</h1>
+        <p>
+            سيقوم النظام بتجميع كل بياناتك وحفظها في ملف مضغوط يمكنك تحميله والاحتفاظ به في مكان آمن.
+        </p>
+        <button id="downloadBackupBtn" class="btn btn-primary btn-backup">
+            <i class="fas fa-download"></i> تنزيل الآن
+        </button>
+        <div id="progress-container" class="progress-container">
+            <div id="progressBar" class="progress-bar">0%</div>
+        </div>
+        <p id="progress-text"></p>
+    </div>
+    
+    <div id="toast" class="toast-notification"><p id="toastMessage"></p></div>
+
+    <script type="module">
+        import { showToast } from './assets/js/utils.js';
+        import { downloadServerBackup } from './assets/js/backup-service.js';
+
+        const downloadBtn = document.getElementById('downloadBackupBtn');
+        const progressContainer = document.getElementById('progress-container');
+        const progressBar = document.getElementById('progressBar');
+        const progressText = document.getElementById('progress-text');
+
+        let isDownloading = false;
+
+        downloadBtn.addEventListener('click', async () => {
+            if (isDownloading) return;
+            isDownloading = true;
+
+            downloadBtn.disabled = true;
+            downloadBtn.innerHTML = '<i class="fas fa-cog fa-spin"></i> يرجى الانتظار...';
+            progressContainer.style.display = 'block';
+            progressText.style.display = 'block';
+            progressBar.style.width = '0%';
+            progressBar.textContent = '0%';
+            
+            let progress = 0;
+            const progressInterval = setInterval(() => {
+                if (progress < 90) { 
+                    progress += 5;
+                    progressBar.style.width = `${progress}%`;
+                    progressBar.textContent = `${progress}%`;
+                    if (progress < 40) {
+                        progressText.textContent = 'جاري التحضير للنسخة الاحتياطية...';
+                    } else if (progress < 70) {
+                        progressText.textContent = 'جاري تجميع البيانات...';
+                    } else {
+                        progressText.textContent = 'جاري ضغط الملف...';
+                    }
+                } else {
+                    clearInterval(progressInterval);
+                    // 💡💡💡 عند الوصول إلى 90%، ثبت الرسالة هنا وأظهر 90%، مما يشير إلى أن الخادم يقوم بالعمل الأخير
+                    progressBar.style.width = '90%';
+                    progressBar.textContent = '90%';
+                    progressText.textContent = 'الخادم يرسل الملف...';
+                }
+            }, 500);
+
+            try {
+                // 💡💡💡 استدعاء الدالة الجديدة التي تتعامل مع التنزيل
+                await downloadServerBackup(); 
+                clearInterval(progressInterval); // أوقف المحاكاة إذا كان التنزيل ناجحًا
+                
+                progressBar.style.width = '100%';
+                progressBar.textContent = '100%';
+                progressText.textContent = 'تم إرسال الملف! تحقق من مجلد التنزيلات.';
+                showToast("تم بدء تنزيل النسخة الاحتياطية بنجاح. تحقق من مجلد التنزيلات.", 'success');
+
+                // 💡💡💡 زيادة وقت التأخير هنا لإعطاء المتصفح فرصة لبدء التنزيل فعليًا
+                setTimeout(() => {
+                    downloadBtn.disabled = false;
+                    downloadBtn.innerHTML = '<i class="fas fa-download"></i> تنزيل نسخة جديدة';
+                    progressContainer.style.display = 'none';
+                    progressText.style.display = 'none';
+                    progressBar.style.width = '0%';
+                    progressBar.textContent = '0%';
+                    isDownloading = false;
+                }, 7000); // 💡💡💡 زيادة الوقت إلى 7 ثوانٍ
+            } catch (error) {
+                clearInterval(progressInterval); 
+                progressBar.style.width = '0%';
+                progressBar.textContent = '0%';
+                progressText.textContent = `فشل في التنزيل: ${error.message}`;
+                showToast(error.message, 'error');
+
+                if (error.message.includes('لا يوجد توكن مصادقة') || error.message.includes('غير مصرح لك')) {
+                    setTimeout(() => {
+                        window.location.href = '/login.html';
+                    }, 2000);
+                }
+
+                downloadBtn.disabled = false;
+                downloadBtn.innerHTML = '<i class="fas fa-download"></i> تنزيل نسخة جديدة';
+                progressContainer.style.display = 'none';
+                progressText.style.display = 'none';
+                isDownloading = false;
+            }
+        });
+
+        function checkAuthOnLoad() {
+            const token = localStorage.getItem('jwtToken');
+            if (!token) {
+                showToast('الرجاء تسجيل الدخول للوصول إلى هذه الصفحة.', 'warning');
+                setTimeout(() => {
+                    window.location.href = '/login.html';
+                }, 1500);
+            }
+        }
+        document.addEventListener('DOMContentLoaded', checkAuthOnLoad);
+    </script>
+</body>
+</html>

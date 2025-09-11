@@ -1,7 +1,28 @@
+// D:\project-root\assets\js\reports-service.js
 // --- ملف خدمة التقارير (Reports Service) ---
 // يحتوي على دوال التعامل مع الخادم الخلفي لتوليد التقارير.
 
 const API_URL = 'http://localhost:3000/api/reports';
+
+// 💡💡💡 إضافة دوال جلب التوكن و رؤوس الطلب 💡💡💡
+const getAuthToken = () => localStorage.getItem('jwtToken');
+
+const getAuthHeaders = (contentType = 'application/json') => {
+    const token = getAuthToken();
+    if (!token) {
+        // يمكن إعادة التوجيه لصفحة تسجيل الدخول إذا لم يتوفر التوكن
+        window.location.href = '/login.html';
+        throw new Error('لا يوجد توكن مصادقة. يرجى تسجيل الدخول.');
+    }
+    const headers = {
+        'x-auth-token': token // إضافة التوكن هنا
+    };
+    if (contentType) {
+        headers['Content-Type'] = contentType;
+    }
+    return headers;
+};
+
 
 /**
  * إرسال طلب لتوليد تقرير بناءً على النوع والفلاتر المحددة.
@@ -11,11 +32,11 @@ const API_URL = 'http://localhost:3000/api/reports';
  */
 export async function generateReport(reportType, filters) {
     try {
+        // 💡💡💡 استخدام getAuthHeaders 💡💡💡
+        const headers = getAuthHeaders();
         const response = await fetch(`${API_URL}/generate`, {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
+            headers: headers, // 👈 استخدم الرؤوس مع التوكن
             body: JSON.stringify({ reportType, filters }),
         });
 
@@ -37,11 +58,11 @@ export async function generateReport(reportType, filters) {
  */
 export async function generateAnnualReport(filters) {
     try {
+        // 💡💡💡 استخدام getAuthHeaders 💡💡💡
+        const headers = getAuthHeaders();
         const response = await fetch(`${API_URL}/generate`, {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
+            headers: headers, // 👈 استخدم الرؤوس مع التوكن
             // نرسل نوع تقرير جديد ليتعرف عليه الخادم
             body: JSON.stringify({ reportType: 'annual-summary', filters }),
         });
@@ -53,6 +74,23 @@ export async function generateAnnualReport(filters) {
         return await response.json();
     } catch (error) {
         console.error("Error generating annual report:", error);
+        throw error;
+    }
+}
+
+// 💡💡💡 إضافة دالة لجلب المحصلين مع المصادقة 💡💡💡
+// هذه الدالة ستكون ضرورية لـ initializePage
+export async function getCollectors() {
+    try {
+        const headers = getAuthHeaders(null); // لا نحتاج Content-Type هنا
+        const response = await fetch('http://localhost:3000/api/collectors', { headers });
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.msg || 'فشل في جلب قائمة المحصلين.');
+        }
+        return await response.json();
+    } catch (error) {
+        console.error("Error fetching collectors:", error);
         throw error;
     }
 }
