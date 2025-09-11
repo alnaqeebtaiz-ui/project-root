@@ -11,11 +11,11 @@ require('dotenv').config();
 // @desc    تسجيل مستخدم جديد (متاح للمدير فقط في البداية)
 // @access  Public (ولكن يجب أن يُستخدم بحذر، أو تُحمى لاحقًا بـ Admin middleware)
 router.post('/register', async (req, res) => {
-    const { username, password, role } = req.body;
+    const { username, email, password, role } = req.body;
 
     try {
         // التحقق مما إذا كان المستخدم موجودًا بالفعل
-        let user = await User.findOne({ username });
+        let user = await User.findOne({ email });
         if (user) {
             return res.status(400).json({ msg: 'اسم المستخدم هذا موجود بالفعل.' });
         }
@@ -23,6 +23,7 @@ router.post('/register', async (req, res) => {
         // إنشاء مستخدم جديد
         user = new User({
             username,
+            email,
             password, // ستُجزأ قبل الحفظ
             role: role || 'collector' // إذا لم يتم تحديد الدور، يكون الافتراضي 'collector'
         });
