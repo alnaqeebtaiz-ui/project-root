@@ -8,7 +8,7 @@ require('dotenv').config(); // لتفعيل قراءة ملف .env
 const subscribersRouter = require('./routes/subscribers');
 const collectorsRouter = require('./routes/collectors');
 const receiptsRouter = require('./routes/receipts');
-const depositsRouter = require('./routes/deposits'); // --- إضافة جديدة: استيراد مسارات التوريد
+const depositsRouter = require('./routes/deposits');
 const notebooks = require('./routes/notebooks');
 const reportsRouter = require('./routes/reports');
 const fundsRouter = require('./routes/funds');
@@ -18,14 +18,21 @@ const authRoutes = require('./routes/auth');
 const dashboardRouter = require('./routes/dashboard');
 const usersRoutes = require('./routes/users');
 
-
 // إنشاء تطبيق Express
 const app = express();
 
-// استخدام middleware للسماح بالطلبات من واجهات مختلفة (CORS)
-app.use(cors());
+// --- Middleware ---
 
-// --- زيادة الحد الأقصى لحجم الطلبات ---
+// CORS setup (مهم جداً للتواصل بين الـ frontend والـ backend)
+// هذا يسمح لـ Netlify بالوصول إلى هذا الـ backend
+app.use(cors({
+    origin: 'https://aesthetic-speculoos-17baf7.netlify.app', // <--- هذا هو رابط Netlify الصحيح
+    methods: ['GET', 'POST', 'PUT', 'DELETE'],
+    allowedHeaders: ['Content-Type', 'x-auth-token'] // مهم: السماح برأس x-auth-token للمصادقة
+}));
+
+// زيادة الحد الأقصى لحجم الطلبات ومعالجة JSON و URL-encoded data
+// يجب أن تأتي هذه بعد CORS
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
@@ -35,8 +42,8 @@ app.use(express.urlencoded({ limit: '50mb', extended: true }));
 app.use('/api/subscribers', subscribersRouter);
 app.use('/api/collectors', collectorsRouter);
 app.use('/api/receipts', receiptsRouter);
-app.use('/api/deposits', depositsRouter); // --- إضافة جديدة: استخدام مسارات التوريد
-app.use('/api/notebooks', notebooks); // <-- وأضف هذا السطر
+app.use('/api/deposits', depositsRouter);
+app.use('/api/notebooks', notebooks);
 app.use('/api/reports', reportsRouter);
 app.use('/api/funds', fundsRouter);
 app.use('/api/funds-reports', fundsReportsRouter);
@@ -46,22 +53,20 @@ app.use('/api/dashboard', dashboardRouter);
 app.use('/api/users', usersRoutes);
 
 
-
-
-
 // --- الاتصال بقاعدة البيانات ---
-const dbURI = process.env.MONGODB_URI;
+// استخدام MONGO_URI الذي قمنا بتعيينه في Render
+const dbURI = process.env.MONGO_URI;
 
 if (!dbURI) {
-    console.error('خطأ: رابط قاعدة البيانات MONGODB_URI غير موجود في ملف .env');
+    console.error('خطأ: رابط قاعدة البيانات MONGO_URI غير موجود في البيئة.'); // <--- رسالة خطأ محدثة
     process.exit(1);
 }
 
 mongoose.connect(dbURI)
     .then(() => {
         console.log('تم الاتصال بقاعدة بيانات MongoDB Atlas بنجاح!');
-        
-        const PORT = process.env.PORT || 3000;
+
+        const PORT = process.env.PORT || 5000; // <--- يمكن تغيير هذا إلى 5000 أو ما تفضله للتشغيل المحلي
 
         app.listen(PORT, () => {
             console.log(`Server is running on port ${PORT}`);
@@ -76,4 +81,3 @@ mongoose.connect(dbURI)
 app.get('/', (req, res) => {
     res.send('<h1>مرحباً بك في خادم إدارة الفواتير!</h1>');
 });
-
