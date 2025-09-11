@@ -15,7 +15,7 @@ router.post('/register', async (req, res) => {
 
     try {
         // التحقق مما إذا كان المستخدم موجودًا بالفعل
-        let user = await User.findOne({ email });
+        let user = await User.findOne({ username });
         if (user) {
             return res.status(400).json({ msg: 'اسم المستخدم هذا موجود بالفعل.' });
         }

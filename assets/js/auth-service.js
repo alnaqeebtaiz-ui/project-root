@@ -8,12 +8,12 @@ const API_URL = 'https://alnaqeeb.onrender.com/api'; // <--- THIS MUST BE CORREC
 
 // Example of what the key functions should look like:
 
-export async function login(email, password) { 
+export async function login(username, password) { 
     try {
         const response = await fetch(`${API_URL}/auth/login`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ email, password }),
+            body: JSON.stringify({ username, password }),
         });
         const data = await response.json();
         if (response.ok) {
