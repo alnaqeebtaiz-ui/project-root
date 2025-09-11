@@ -1,18 +1,23 @@
-// C:\Users\khalid\Downloads\project-root\backend\routes\dashboard.js
 const express = require('express');
 const router = express.Router();
 const mongoose = require('mongoose');
 
+// استيراد الموديلات اللازمة
 const Receipt = require('../models/Receipt');
 const Collector = require('../models/Collector');
 const Notebook = require('../models/Notebook');
 const Deposit = require('../models/Deposit');
 const Fund = require('../models/Fund');
 
-const { authenticateToken, authorizeRoles } = require('../middleware/authMiddleware'); // Keep this line for security
+// استيراد middleware الأمان
+const { authenticateToken, authorizeRoles } = require('../middleware/authMiddleware'); // <--- إضافة هذا السطر
 
-router.get('/summary', authenticateToken, async (req, res) => { // Keep authenticateToken here
+// @route   GET api/dashboard/summary
+// @desc    Get all summary data for the dashboard
+// @access  Private (بواسطة authenticateToken)
+router.get('/summary', authenticateToken, async (req, res) => { // <--- إضافة authenticateToken هنا
     try {
+        // --- 1. تحديد نطاقات التواريخ ---
         const todayStart = new Date();
         todayStart.setHours(0, 0, 0, 0);
 
@@ -22,8 +27,9 @@ router.get('/summary', authenticateToken, async (req, res) => { // Keep authenti
 
         const sixMonthsAgo = new Date();
         sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
-        sixMonthsAgo.setHours(0, 0, 0, 0);
+        sixMonthsAgo.setHours(0, 0, 0, 0); // التأكد من أن اليوم يبدأ من 00:00:00
 
+        // --- 2. جلب البيانات باستخدام Promise.all للكفاءة ---
         const [
             totalCollectedThisMonth,
             activeCollectorsCount,
@@ -34,16 +40,21 @@ router.get('/summary', authenticateToken, async (req, res) => { // Keep authenti
             last5Receipts,
             last5Deposits
         ] = await Promise.all([
+            // إجمالي التحصيل هذا الشهر
             Receipt.aggregate([
                 { $match: { date: { $gte: monthStart } } },
                 { $group: { _id: null, total: { $sum: '$amount' } } }
             ]),
+            // عدد المحصلين
             Collector.countDocuments(),
+            // عدد سندات اليوم
             Receipt.countDocuments({ date: { $gte: todayStart } }),
+            // إجمالي السندات المفقودة
             Notebook.aggregate([
                 { $project: { missingCount: { $size: '$missingReceipts' } } },
                 { $group: { _id: null, total: { $sum: '$missingCount' } } }
             ]),
+            // بيانات مخطط الأعمدة (آخر 6 أشهر)
             Receipt.aggregate([
                 { $match: { date: { $gte: sixMonthsAgo } } },
                 { $group: {
@@ -52,6 +63,7 @@ router.get('/summary', authenticateToken, async (req, res) => { // Keep authenti
                 }},
                 { $sort: { '_id.year': 1, '_id.month': 1 } }
             ]),
+            // بيانات المخطط الدائري (حسب الصندوق)
             Receipt.aggregate([
                 { $lookup: { from: 'collectors', localField: 'collector', foreignField: '_id', as: 'collectorInfo' } },
                 { $unwind: '$collectorInfo' },
@@ -59,10 +71,13 @@ router.get('/summary', authenticateToken, async (req, res) => { // Keep authenti
                 { $unwind: '$fundInfo' },
                 { $group: { _id: '$fundInfo.name', total: { $sum: '$amount' } } }
             ]),
+            // آخر 5 سندات
             Receipt.find().sort({ createdAt: -1 }).limit(5).populate('collector', 'name'),
+            // آخر 5 توريدات
             Deposit.find().sort({ createdAt: -1 }).limit(5).populate('collector', 'name'),
         ]);
 
+        // --- 3. تجهيز البيانات النهائية للإرسال ---
         const summary = {
             kpiCards: {
                 totalCollectedThisMonth: totalCollectedThisMonth[0]?.total || 0,
