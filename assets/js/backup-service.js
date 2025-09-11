@@ -4,7 +4,7 @@
  * This file will contain logic for downloading local backups (JSON/CSV).
  */
 
-const API_URL = 'http://localhost:3000/api'; // تأكد من أن هذا هو الـ URL الصحيح للـ Backend
+const API_URL = 'https://alnaqeeb.onrender.com/api'; // تأكد من أن هذا هو الـ URL الصحيح للـ Backend
 
 // 💡💡💡 إضافة دوال جلب التوكن و رؤوس الطلب 💡💡💡
 const getAuthToken = () => localStorage.getItem('jwtToken');

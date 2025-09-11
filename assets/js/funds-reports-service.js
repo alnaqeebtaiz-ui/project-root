@@ -2,7 +2,7 @@
 // --- ملف خدمة تقارير الصناديق (Funds Reports Service) ---
 // يحتوي على دوال التعامل مع الخادم الخلفي لتوليد تقارير الصناديق (المحصلين).
 
-const API_URL = 'http://localhost:3000/api/funds-reports';
+const API_URL = 'https://alnaqeeb.onrender.com/api/funds-reports';
 
 // 💡💡💡 إضافة دوال جلب التوكن و رؤوس الطلب 💡💡💡
 const getAuthToken = () => localStorage.getItem('jwtToken');
@@ -55,7 +55,7 @@ export async function generateFundReport(reportType, filters) {
 export async function getFunds() {
     try {
         const headers = getAuthHeaders(null); // لا نحتاج Content-Type هنا
-        const response = await fetch('http://localhost:3000/api/funds', { headers });
+        const response = await fetch('https://alnaqeeb.onrender.com/api/funds', { headers });
         if (!response.ok) {
             const errorData = await response.json();
             throw new Error(errorData.msg || 'فشل في جلب قائمة الصناديق.');

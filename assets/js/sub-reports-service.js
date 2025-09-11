@@ -1,6 +1,6 @@
 // D:\project-root\assets\js\sub-reports-service.js
 // --- ملف خدمة تقارير المشتركين (Subscribers Reports Service) ---
-const API_URL = 'http://localhost:3000/api'; // URL الأساسي للخادم
+const API_URL = 'https://alnaqeeb.onrender.com/api'; // URL الأساسي للخادم
 
 // 💡💡💡 إضافة دوال جلب التوكن و رؤوس الطلب 💡💡💡
 const getAuthToken = () => localStorage.getItem('jwtToken');

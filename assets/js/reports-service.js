@@ -2,7 +2,7 @@
 // --- ملف خدمة التقارير (Reports Service) ---
 // يحتوي على دوال التعامل مع الخادم الخلفي لتوليد التقارير.
 
-const API_URL = 'http://localhost:3000/api/reports';
+const API_URL = 'https://alnaqeeb.onrender.com/api/reports';
 
 // 💡💡💡 إضافة دوال جلب التوكن و رؤوس الطلب 💡💡💡
 const getAuthToken = () => localStorage.getItem('jwtToken');
@@ -83,7 +83,7 @@ export async function generateAnnualReport(filters) {
 export async function getCollectors() {
     try {
         const headers = getAuthHeaders(null); // لا نحتاج Content-Type هنا
-        const response = await fetch('http://localhost:3000/api/collectors', { headers });
+        const response = await fetch('https://alnaqeeb.onrender.com/api/collectors', { headers });
         if (!response.ok) {
             const errorData = await response.json();
             throw new Error(errorData.msg || 'فشل في جلب قائمة المحصلين.');

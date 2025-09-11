@@ -3,7 +3,7 @@
 // لجلب وإدارة بيانات المحصلين.
 
 // تعريف الرابط الأساسي للخادم الخلفي
-const API_BASE_URL = 'http://localhost:3000/api'; // تم تعديل هذا ليصبح الرابط الأساسي فقط
+const API_BASE_URL = 'https://alnaqeeb.onrender.com/api'; // تم تعديل هذا ليصبح الرابط الأساسي فقط
 const COLLECTORS_API_URL = `${API_BASE_URL}/collectors`; // رابط API الخاص بالمحصلين
 
 // دالة مساعدة لجلب التوكن من localStorage

@@ -3,7 +3,7 @@
 // لجلب وإدارة بيانات الصناديق.
 
 // تعريف الرابط الأساسي للخادم الخلفي
-const API_BASE_URL = 'http://localhost:3000/api'; // تم تعديل هذا ليصبح الرابط الأساسي فقط
+const API_BASE_URL = 'https://alnaqeeb.onrender.com/api'; // تم تعديل هذا ليصبح الرابط الأساسي فقط
 const FUNDS_API_URL = `${API_BASE_URL}/funds`; // رابط API الخاص بالصناديق
 
 // دالة مساعدة لجلب التوكن من localStorage

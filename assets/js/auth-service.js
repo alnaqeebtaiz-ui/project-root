@@ -1,5 +1,5 @@
 // C:\Users\khalid\Downloads\project-root\assets\js\auth-service.js
-const API_URL = 'http://localhost:3000/api'; // <--- THIS MUST BE CORRECT AND YOUR BACKEND RUNNING
+const API_URL = 'https://alnaqeeb.onrender.com/api'; // <--- THIS MUST BE CORRECT AND YOUR BACKEND RUNNING
 
 /**
  * ... (All the login, logout, getAuthToken, isAuthenticated, getUserRole, setUserInfo, getUserInfo functions) ...

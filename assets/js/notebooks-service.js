@@ -3,7 +3,7 @@
 // لجلب وإدارة بيانات الدفاتر.
 
 // تعريف الرابط الأساسي للخادم الخلفي
-const API_BASE_URL = 'http://localhost:3000/api'; // الرابط الأساسي
+const API_BASE_URL = 'https://alnaqeeb.onrender.com/api'; // الرابط الأساسي
 const NOTEBOOKS_API_URL = `${API_BASE_URL}/notebooks`; // رابط API الخاص بالدفاتر
 
 // دالة مساعدة لجلب التوكن من localStorage

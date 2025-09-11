@@ -1,6 +1,6 @@
 // D:\project-root\assets\js\users-service.js
 
-const API_BASE_URL = 'http://localhost:3000/api';
+const API_BASE_URL = 'https://alnaqeeb.onrender.com/api';
 const USERS_API_URL = `${API_BASE_URL}/users`;
 
 const getAuthToken = () => localStorage.getItem('jwtToken');
