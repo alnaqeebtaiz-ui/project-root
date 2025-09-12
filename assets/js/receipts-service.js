@@ -30,9 +30,15 @@ const getAuthHeaders = () => {
 };
 
 // دالة مساعدة لمعالجة استجابات الخادم
+// دالة مساعدة لمعالجة استجابات الخادم - تأكد من وجود هذه الدالة وتحديثها
 async function handleResponse(response) {
     if (!response.ok) {
-        const errorData = await response.json();
+        let errorData = {};
+        try {
+            errorData = await response.json();
+        } catch (e) {
+            throw new Error(`Error: ${response.status} ${response.statusText || 'Unknown Error'}. Server responded with non-JSON content.`);
+        }
         const errorMessage = errorData.message || errorData.msg || 'حدث خطأ غير معروف.';
         throw new Error(errorMessage);
     }
@@ -61,25 +67,7 @@ export async function getReceipts(page = 1, limit = 50, filters = {}) {
     }
 }
 
-// 💡💡💡 دالة جديدة: جلب جميع السندات للتصدير (بدون تصفح) 💡💡💡
-// هذه الدالة ستستخدم نفس API_BASE_URL ولكن ستطلب جميع السندات
-// وقد تحتاج إلى مسار API مختلف في الخلفية (مثلاً /receipts/all)
-export async function getReceiptsForExport(filters = {}) {
-    try {
-        const headers = getAuthHeaders();
-        const params = new URLSearchParams(filters); // بناء معلمات URL من الفلاتر
-        // افتراض أن مسار /receipts/all يعيد جميع السندات المفلترة بدون تصفح
-        // تأكد من أن الـ Backend الخاص بك يدعم هذا المسار
-        const url = `${RECEIPTS_API_URL}/all?${params.toString()}`; // <--- **هذا المسار في الـ Backend يجب أن يكون موجودًا**
-        
-        const response = await fetch(url, { headers });
-        const data = await handleResponse(response);
-        return data.receipts || []; // افترض أن الـ Backend يرجع كائن { receipts: [...] }
-    } catch (error) {
-        console.error("Error fetching all receipts for export:", error);
-        throw error;
-    }
-}
+
 
 
 /**

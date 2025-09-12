@@ -281,7 +281,7 @@
     <div id="toast" class="toast-notification"><p id="toastMessage"></p></div>
 
     <script type="module">
-        import { getReceipts, addReceipt, deleteReceipt, batchAddReceipts, searchCollectors, searchSubscribers, getReceiptsForExport } from './assets/js/receipts-service.js';
+        import { getReceipts, addReceipt, deleteReceipt, batchAddReceipts, searchCollectors, searchSubscribers } from './assets/js/receipts-service.js';
         import { importReceiptsFromExcel } from './assets/js/import-excel.js';
         import { showToast, sanitizeInput, formatCurrency } from './assets/js/utils.js';
 
@@ -433,45 +433,42 @@
             }
         }
         
-        async function handleExportClick() {
-            const exportBtn = document.getElementById('exportExcelBtn');
-            exportBtn.disabled = true;
-            const originalText = exportBtn.innerHTML;
-            exportBtn.innerHTML = 'جاري التصدير...'; // استخدام innerHTML لتضمين الرمز
         
+        async function handleExportClick() {
+            const btn = document.getElementById('exportExcelBtn');
+            btn.disabled = true;
+            btn.innerHTML = 'تصدير'; // أو أي نص أو أيقونة كنت تستخدمها
             try {
-                // استخدام currentFilters للحصول على نفس البيانات المفلترة في الجدول
-                const allFilteredReceipts = await getReceiptsForExport(currentFilters); 
-                
-                if (allFilteredReceipts.length === 0) {
-                    showToast('لا توجد بيانات للتصدير', 'warning');
+                // استخدام دالة getReceipts من الـ service لجلب كل شيء (limit=0) بناءً على الفلاتر الحالية
+                const data = await getReceipts(1, 0, currentFilters); 
+
+                if (data.receipts.length === 0) {
+                    showToast('لا توجد بيانات لتصديرها.', 'warning');
                     return;
                 }
-
-                const worksheetData = allFilteredReceipts.map(receipt => ({
-                    'رقم السند': receipt.receiptNumber,
-                    'المبلغ': receipt.amount,
-                    'اسم المشترك': receipt.subscriber ? receipt.subscriber.name : 'غير معروف',
-                    'كود المشترك': receipt.subscriber ? receipt.subscriber.code : 'غير معروف',
-                    'اسم المحصل': receipt.collector ? receipt.collector.name : 'غير معروف',
-                    'كود المحصل': receipt.collector ? receipt.collector.collectorCode : 'غير معروف',
-                    'تاريخ التحصيل': formatISODate(receipt.date),
-                    'الحالة': receipt.status
+                const dataToExport = data.receipts.map(r => ({
+                    'رقم السند': r.receiptNumber, 'المبلغ': r.amount,
+                    'اسم المشترك': r.subscriber?.name || '', 
+                    'اسم المحصل': r.collector?.name || '',
+                    'كود المحصل': r.collector?.collectorCode || '', 
+                    'تاريخ التحصيل': formatISODate(r.date), 
+                    'الحالة': r.status
                 }));
-
-                const ws = XLSX.utils.json_to_sheet(worksheetData);
+                const ws = XLSX.utils.json_to_sheet(dataToExport);
                 const wb = XLSX.utils.book_new();
                 XLSX.utils.book_append_sheet(wb, ws, "السندات");
-                XLSX.writeFile(wb, "السندات_المفلترة.xlsx");
-                showToast('تم تصدير البيانات بنجاح', 'success');
+                XLSX.writeFile(wb, "Receipts_Export.xlsx");
+                showToast('تم تصدير الكشف بنجاح', 'success');
+
             } catch (error) {
-                console.error("Error exporting data:", error);
-                showToast(error.message || 'فشل تصدير البيانات.', 'error');
+                console.error("Export Error:", error); // للتتبع في الكونسول
+                showToast(error.message || 'فشل تصدير الكشف.', 'error'); 
             } finally {
-                exportBtn.disabled = false;
-                exportBtn.innerHTML = originalText;
+                btn.disabled = false;
+                btn.innerHTML = '⬇'; // أو الأيقونة الأصلية
             }
         }
+
 
         function renderAutocompleteResults(results, resultsDiv) {
             resultsDiv.innerHTML = '';
