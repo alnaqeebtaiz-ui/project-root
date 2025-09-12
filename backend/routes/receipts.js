@@ -197,10 +197,14 @@ router.post('/batch', authorizeRoles('admin', 'manager'), async (req, res) => {
 // 💡💡💡 تمت إضافة `authorizeRoles('admin', 'manager', 'collector')` هنا 💡💡💡
 // هذا يعني أن إضافة سند يدوي يتطلب أن يكون المستخدم "مدير" أو "مشرف" أو "محصل" (مسجل دخول ولديه هذا الدور).
 router.post('/', authorizeRoles('admin', 'manager', 'collector'), async (req, res) => {
+
+    // معالجة التاريخ لضمان حفظه بشكل صحيح كبداية اليوم بتوقيت UTC
+    let receiptDate = new Date(req.body.date);
+    receiptDate.setUTCHours(0, 0, 0, 0); // ضبط التوقيت لمنتصف الليل (UTC) لليوم المحدد
     const receipt = new Receipt({
         receiptNumber: req.body.receiptNumber,
         amount: req.body.amount,
-        date: req.body.date,
+        date: receiptDate,
         status: req.body.status,
         collector: req.body.collector,
         subscriber: req.body.subscriber,
@@ -240,6 +244,50 @@ router.delete('/:id', authorizeRoles('admin'), async (req, res) => {
         res.json({ message: 'تم حذف السند بنجاح' });
     } catch (err) {
         res.status(500).json({ message: 'حدث خطأ أثناء محاولة الحذف.' });
+    }
+});
+
+// --- المسار 6: البحث الذكي عن المحصلين (Autocomplete) ---
+router.get('/search-collectors', authenticateToken, async (req, res) => {
+    const { query } = req.query; // النص الذي يكتبه المستخدم للبحث
+    if (!query) {
+        return res.status(200).json([]); // لا يوجد نص للبحث، أعد قائمة فارغة
+    }
+
+    try {
+        // البحث عن المحصلين الذين يحتوي اسمهم أو كودهم على النص المدخل
+        // نستخدم i$ لجعل البحث غير حساس لحالة الأحرف (case-insensitive)
+        const collectors = await Collector.find({
+            $or: [
+                { name: { $regex: query, $options: 'i' } },
+                { collectorCode: { $regex: query, $options: 'i' } }
+            ]
+        }).select('_id name collectorCode').limit(10); // تحديد الحقول المطلوبة وتحديد عدد النتائج
+
+        res.json(collectors);
+    } catch (err) {
+        console.error("Error searching collectors:", err);
+        res.status(500).json({ message: 'حدث خطأ أثناء البحث عن المحصلين.' });
+    }
+});
+
+// --- المسار 7: البحث الذكي عن المشتركين (Autocomplete) ---
+router.get('/search-subscribers', authenticateToken, async (req, res) => {
+    const { query } = req.query; // النص الذي يكتبه المستخدم للبحث
+    if (!query) {
+        return res.status(200).json([]); // لا يوجد نص للبحث، أعد قائمة فارغة
+    }
+
+    try {
+        // البحث عن المشتركين الذين يحتوي اسمهم على النص المدخل
+        const subscribers = await Subscriber.find({
+            name: { $regex: query, $options: 'i' }
+        }).select('_id name').limit(10); // تحديد الحقول المطلوبة وتحديد عدد النتائج
+
+        res.json(subscribers);
+    } catch (err) {
+        console.error("Error searching subscribers:", err);
+        res.status(500).json({ message: 'حدث خطأ أثناء البحث عن المشتركين.' });
     }
 });
 

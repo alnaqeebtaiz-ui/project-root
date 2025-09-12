@@ -88,6 +88,51 @@
                         <button id="exportExcelBtn" class="btn btn-secondary" title="تصدير Excel" style="font-size: 1.2rem; padding: 8px 15px;">⬇</button>
                     </div>
                 </div>
+
+                <div class="add-receipt-form-container action-bar-container" style="margin-top: 20px;">
+                    <h2 style="margin-bottom: 20px;">إضافة سند جديد يدويًا</h2>
+                    <form id="addReceiptForm" class="action-bar" style="align-items: flex-start;">
+                        <div class="form-group">
+                            <label for="newReceiptNumber">رقم السند:</label>
+                            <input type="number" id="newReceiptNumber" class="form-control" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="newAmount">المبلغ:</label>
+                            <input type="number" id="newAmount" class="form-control" step="0.01" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="newDate">تاريخ السند:</label>
+                            <input type="date" id="newDate" class="form-control" required>
+                        </div>
+
+                        <div class="form-group autocomplete-container">
+                            <label for="newCollectorName">اسم المحصل:</label>
+                            <input type="text" id="newCollectorName" class="form-control" placeholder="ابحث عن محصل..." autocomplete="off" required>
+                            <input type="hidden" id="newCollectorId">
+                            <div id="newCollectorResults" class="autocomplete-results" style="display: none;"></div>
+                        </div>
+
+                        <div class="form-group autocomplete-container">
+                            <label for="newSubscriberName">اسم المشترك:</label>
+                            <input type="text" id="newSubscriberName" class="form-control" placeholder="ابحث عن مشترك..." autocomplete="off" required>
+                            <input type="hidden" id="newSubscriberId">
+                            <div id="newSubscriberResults" class="autocomplete-results" style="display: none;"></div>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="newStatus">الحالة:</label>
+                            <select id="newStatus" class="form-control" required>
+                                <option value="active">نشط</option>
+                                <option value="cancelled">ملغي</option>
+                                <option value="damaged">تالف</option>
+                                <option value="error">خطأ</option>
+                            </select>
+                        </div>
+
+                        <button type="submit" class="btn btn-primary" style="margin-top: 30px;">إضافة سند</button>
+                        <button type="reset" class="btn btn-secondary" style="margin-top: 30px;">مسح الحقول</button>
+                    </form>
+                </div>
                 
                 <div class="table-container">
                     <table class="data-table">
@@ -132,16 +177,16 @@
 
     <script type="module">
         // تم تعديل الاستيراد ليشمل الدوال الجديدة والموجودة من الـ service
-        import { getReceipts, getCollectors, deleteReceipt, batchAddReceipts } from './assets/js/receipts-service.js';
+        import { getReceipts, getCollectors, addReceipt, deleteReceipt, batchAddReceipts, searchCollectors, searchSubscribers } from './assets/js/receipts-service.js';
         import { importReceiptsFromExcel } from './assets/js/import-excel.js';
         import { showToast, sanitizeInput, formatCurrency } from './assets/js/utils.js';
 
         // --- Global State ---
         let currentPage = 1;
         let currentFilters = {};
-        let allCollectors = [];
         let receiptIdToDelete = null;
         const PAGE_LIMIT = 50;
+        let debounceTimer;
 
         // --- DOM Elements ---
         const tableBody = document.getElementById('receiptsTableBody');
@@ -154,15 +199,31 @@
         const collectorFilterInput = document.getElementById('collectorFilter');
         const collectorIdInput = document.getElementById('collectorIdFilter');
         const collectorResultsDiv = document.getElementById('collectorResults');
+
+        // 💡💡💡 عناصر نموذج إضافة السند الجديد - أضف هذه السطور 💡💡💡
+        const addReceiptForm = document.getElementById('addReceiptForm');
+        const newReceiptNumberInput = document.getElementById('newReceiptNumber');
+        const newAmountInput = document.getElementById('newAmount');
+        const newDateInput = document.getElementById('newDate');
+        const newStatusSelect = document.getElementById('newStatus');
+
+        // عناصر البحث الذكي للمحصل في نموذج الإضافة
+        const newCollectorNameInput = document.getElementById('newCollectorName');
+        const newCollectorIdInput = document.getElementById('newCollectorId');
+        const newCollectorResultsDiv = document.getElementById('newCollectorResults');
+
+        // عناصر البحث الذكي للمشترك في نموذج الإضافة
+        const newSubscriberNameInput = document.getElementById('newSubscriberName');
+        const newSubscriberIdInput = document.getElementById('newSubscriberId');
+        const newSubscriberResultsDiv = document.getElementById('newSubscriberResults');
         
         function formatISODate(iso) { return iso ? iso.split('T')[0] : ''; }
 
         async function initializePage() {
             try {
-                // استخدام دالة getCollectors من الـ service التي ترسل التوكن
-                allCollectors = await getCollectors(); // 👈 تم التعديل هنا
+                // ملاحظة: تم إزالة الكود القديم هنا لملء قائمة المحصلين لأننا نستخدم البحث الذكي الآن.
             } catch (error) {
-                showToast(error.message || 'فشل تحميل قائمة المحصلين', 'error');
+                //showToast(error.message || 'فشل تحميل قائمة المحصلين', 'error'); // هذا الكود معطل (تعليق)
             }
             await loadReceipts();
         }
@@ -174,7 +235,7 @@
             currentFilters = filters;
             try {
                 // استخدام دالة getReceipts من الـ service التي ترسل التوكن
-                const data = await getReceipts(page, PAGE_LIMIT, filters); // 👈 تم التعديل هنا
+                const data = await getReceipts(page, PAGE_LIMIT, filters); 
                 
                 displayReceipts(data.receipts);
                 updatePaginationControls(data);
@@ -213,7 +274,7 @@
         }
         
         function updatePaginationControls({ currentPage, totalPages, totalReceipts }) {
-            if (totalPages > 1) { // كان 0، عدلته إلى 1 ليعرض أزرار التصفح حتى لو صفحة واحدة
+            if (totalPages > 1 || totalReceipts > 0) { // تعديل ليعرض التصفح إذا كان هناك سندات حتى لو صفحة واحدة
                 pageInfo.textContent = `الصفحة ${currentPage} من ${totalPages} (إجمالي ${totalReceipts} سند)`;
                 prevPageBtn.disabled = currentPage <= 1;
                 nextPageBtn.disabled = currentPage >= totalPages;
@@ -235,53 +296,6 @@
             loadReceipts(1, filters);
         }
 
-        async function handleExportClick() {
-            const btn = document.getElementById('exportExcelBtn');
-            btn.disabled = true;
-            btn.innerHTML = '...';
-            try {
-                // استخدام دالة getReceipts من الـ service لجلب كل شيء (limit=0)
-                const data = await getReceipts(1, 0, currentFilters); // 👈 تم التعديل هنا
-                
-                if (data.receipts.length === 0) {
-                    showToast('لا توجد بيانات لتصديرها.', 'warning');
-                    return;
-                }
-                const dataToExport = data.receipts.map(r => ({
-                    'رقم السند': r.receiptNumber, 'المبلغ': r.amount,
-                    'اسم المشترك': r.subscriber?.name || '', 'اسم المحصل': r.collector?.name || '',
-                    'كود المحصل': r.collector?.collectorCode || '', 'تاريخ التحصيل': formatISODate(r.date), 'الحالة': r.status
-                }));
-                const ws = XLSX.utils.json_to_sheet(dataToExport);
-                const wb = XLSX.utils.book_new();
-                XLSX.utils.book_append_sheet(wb, ws, "السندات");
-                XLSX.writeFile(wb, "Receipts_Export.xlsx");
-                showToast('تم تصدير الكشف بنجاح', 'success');
-
-            } catch (error) {
-                showToast(error.message || 'فشل تصدير الكشف.', 'error'); // 👈 تم تعديل رسالة الخطأ
-            } finally {
-                btn.disabled = false;
-                btn.innerHTML = '⬇';
-            }
-        }
-        
-        function renderCollectorResults(results) {
-            collectorResultsDiv.innerHTML = '';
-            if (results.length === 0) {
-                collectorResultsDiv.style.display = 'none';
-                return;
-            }
-            results.forEach(collector => {
-                const item = document.createElement('div');
-                item.className = 'autocomplete-item';
-                item.textContent = `${collector.name} (${collector.collectorCode})`;
-                item.dataset.id = collector._id;
-                collectorResultsDiv.appendChild(item);
-            });
-            collectorResultsDiv.style.display = 'block';
-        }
-        
         async function handleExcelImport(event) {
             const file = event.target.files[0];
             if (!file) return;
@@ -292,22 +306,52 @@
                 const result = await importReceiptsFromExcel(file);
                 if (result.success) {
                     // استخدام دالة batchAddReceipts من الـ service التي ترسل التوكن
-                    const serverResponse = await batchAddReceipts(result.data); // 👈 تم التعديل هنا
+                    const serverResponse = await batchAddReceipts(result.data); 
                     showToast(serverResponse.message, 'success');
                     if (serverResponse.errors?.length > 0) {
-                        alert(`حدثت أخطاء:\n${serverResponse.errors.join('\n')}`);
+                        // استخدام alert مع نص واضح لمنع المشاكل
+                        const errorMessages = serverResponse.errors.map(err => {
+                            if (typeof err === 'object' && err.message) return err.message;
+                            return err;
+                        }).join('\n');
+                        alert(`حدثت أخطاء أثناء الاستيراد:\n${errorMessages}`);
                     }
                     loadReceipts(1);
                 } else {
                     showToast(result.error, 'error');
                 }
             } catch (error) {
+                console.error("Error during Excel import:", error); // تسجيل الخطأ كاملاً
                 showToast(error.message || 'فشل استيراد الملف.', 'error');
             } finally {
                 importBtn.disabled = false;
                 importBtn.textContent = 'استيراد';
                 event.target.value = '';
             }
+        }
+        
+        // 💡💡💡 استبدال دالة renderCollectorResults بالكامل بدالة renderAutocompleteResults العامة 💡💡💡
+        function renderAutocompleteResults(results, resultsDiv) { // تم تبسيط المعلمات
+            resultsDiv.innerHTML = ''; // مسح النتائج القديمة
+            if (results.length === 0) {
+                resultsDiv.style.display = 'none';
+                return;
+            }
+            results.forEach(item => {
+                const resultItem = document.createElement('div');
+                resultItem.className = 'autocomplete-item';
+                // بناء النص المعروض حسب نوع العنصر (محتصل أو مشترك)
+                if (item.collectorCode) { // إذا كان محصلاً
+                    resultItem.textContent = `${item.name} (${item.collectorCode})`;
+                } else { // إذا كان مشتركاً (أو نوع آخر مستقبلاً)
+                    resultItem.textContent = item.name;
+                }
+                resultItem.dataset.id = item._id; // تخزين الـ ID
+                resultItem.dataset.name = item.name; // اسم الكائن
+                resultItem.dataset.collectorCode = item.collectorCode || ''; // كود المحصل (إذا كان موجوداً)
+                resultsDiv.appendChild(resultItem);
+            });
+            resultsDiv.style.display = 'block';
         }
         
         function openDeleteModal(id) {
@@ -324,11 +368,11 @@
             if (!receiptIdToDelete) return;
             try {
                 // استخدام دالة deleteReceipt من الـ service التي ترسل التوكن
-                await deleteReceipt(receiptIdToDelete); // 👈 تم التعديل هنا
+                await deleteReceipt(receiptIdToDelete); 
                 showToast('تم حذف السند بنجاح.', 'success');
                 loadReceipts(1, currentFilters); 
             } catch (error) {
-                showToast(error.message || 'فشل حذف السند.', 'error'); // 👈 تم تعديل رسالة الخطأ
+                showToast(error.message || 'فشل حذف السند.', 'error'); 
             } finally {
                 closeDeleteModal();
             }
@@ -340,33 +384,155 @@
             document.getElementById('exportExcelBtn').addEventListener('click', handleExportClick);
             filterBtn.addEventListener('click', handleFilter);
 
+            // 💡💡💡 تم تصحيح استخدام renderAutocompleteResults هنا 💡💡💡
             collectorFilterInput.addEventListener('keyup', () => {
-                const term = collectorFilterInput.value.toLowerCase();
-                if (!term) {
-                    renderCollectorResults([]);
-                    collectorIdInput.value = '';
+                clearTimeout(debounceTimer); 
+                const term = collectorFilterInput.value.trim(); 
+
+                if (term.length < 2) {
+                    renderAutocompleteResults([], collectorResultsDiv); 
+                    collectorIdInput.value = ''; 
                     return;
                 }
-                const results = allCollectors.filter(c => 
-                    c.name.toLowerCase().includes(term) || c.collectorCode.toLowerCase().includes(term)
-                );
-                renderCollectorResults(results.slice(0, 7));
+
+                debounceTimer = setTimeout(async () => {
+                    try {
+                        const results = await searchCollectors(term);
+                        renderAutocompleteResults(results, collectorResultsDiv); 
+                    } catch (error) {
+                        console.error("Error fetching collector search results:", error);
+                        renderAutocompleteResults([], collectorResultsDiv); 
+                        showToast('فشل البحث عن المحصلين', 'error');
+                    }
+                }, 300); 
             });
 
-            collectorResultsDiv.addEventListener('click', (e) => {
+            // 💡💡💡 أضف معالج الحدث هذا لحقل اسم المحصل في نموذج الإضافة 💡💡💡
+            newCollectorNameInput.addEventListener('keyup', () => {
+                clearTimeout(debounceTimer); 
+                const term = newCollectorNameInput.value.trim();
+
+                if (term.length < 2) {
+                    renderAutocompleteResults([], newCollectorResultsDiv); 
+                    newCollectorIdInput.value = ''; 
+                    return;
+                }
+
+                debounceTimer = setTimeout(async () => {
+                    try {
+                        const results = await searchCollectors(term);
+                        renderAutocompleteResults(results, newCollectorResultsDiv);
+                    } catch (error) {
+                        console.error("Error fetching new receipt collector search results:", error);
+                        renderAutocompleteResults([], newCollectorResultsDiv); 
+                    }
+                }, 300); 
+            });
+
+            // 💡💡💡 أضف معالج الحدث هذا لحقل اسم المشترك في نموذج الإضافة 💡💡💡
+            newSubscriberNameInput.addEventListener('keyup', () => {
+                clearTimeout(debounceTimer); 
+                const term = newSubscriberNameInput.value.trim();
+
+                if (term.length < 2) {
+                    renderAutocompleteResults([], newSubscriberResultsDiv); 
+                    newSubscriberIdInput.value = ''; 
+                    return;
+                }
+
+                debounceTimer = setTimeout(async () => {
+                    try {
+                        const results = await searchSubscribers(term);
+                        renderAutocompleteResults(results, newSubscriberResultsDiv);
+                    } catch (error) {
+                        console.error("Error fetching new receipt subscriber search results:", error);
+                        renderAutocompleteResults([], newSubscriberResultsDiv); 
+                    }
+                }, 300); 
+            });
+
+            // 💡💡💡 استبدل معالج حدث document.addEventListener('click', ...) بالكامل بهذا الكود 💡💡💡
+            document.addEventListener('click', (e) => {
+                // --- معالجة النقر على عنصر من نتائج البحث الذكي ---
                 const item = e.target.closest('.autocomplete-item');
                 if (item) {
-                    collectorFilterInput.value = item.textContent;
-                    collectorIdInput.value = item.dataset.id;
+                    const id = item.dataset.id;
+                    const name = item.dataset.name;
+                    const collectorCode = item.dataset.collectorCode; // قد يكون فارغاً للمشتركين
+
+                    // تحديد أي حقل إدخال هو المستهدف بناءً على الـ div الذي يحتوي النتيجة
+                    const parentResultsDiv = item.closest('.autocomplete-results');
+
+                    if (parentResultsDiv === collectorResultsDiv) { // نتائج فلتر المحصل
+                        collectorFilterInput.value = collectorCode ? `${name} (${collectorCode})` : name;
+                        collectorIdInput.value = id;
+                    } else if (parentResultsDiv === newCollectorResultsDiv) { // نتائج محصل الإضافة الجديدة
+                        newCollectorNameInput.value = collectorCode ? `${name} (${collectorCode})` : name;
+                        newCollectorIdInput.value = id;
+                    } else if (parentResultsDiv === newSubscriberResultsDiv) { // نتائج مشترك الإضافة الجديدة
+                        newSubscriberNameInput.value = name;
+                        newSubscriberIdInput.value = id;
+                    }
+
+                    // إخفاء جميع قوائم البحث الذكي بعد الاختيار
                     collectorResultsDiv.style.display = 'none';
+                    newCollectorResultsDiv.style.display = 'none';
+                    newSubscriberResultsDiv.style.display = 'none';
+                    return; 
+                }
+
+                // --- معالجة النقر خارج أي حاوية بحث تلقائي لإخفاء القوائم ---
+                if (!e.target.closest('.autocomplete-container')) {
+                    collectorResultsDiv.style.display = 'none';
+                    newCollectorResultsDiv.style.display = 'none';
+                    newSubscriberResultsDiv.style.display = 'none';
+                }
+            });
+            
+            // 💡💡💡 أضف معالج الحدث هذا لنموذج إضافة السند الجديد 💡💡💡
+            addReceiptForm.addEventListener('submit', async (e) => {
+                e.preventDefault(); 
+
+                const submitBtn = e.target.querySelector('button[type="submit"]');
+                submitBtn.disabled = true;
+                submitBtn.textContent = 'جاري الإضافة...';
+
+                try {
+                    const receiptData = {
+                        receiptNumber: parseInt(newReceiptNumberInput.value), 
+                        amount: parseFloat(newAmountInput.value), 
+                        date: newDateInput.value, 
+                        collector: newCollectorIdInput.value, 
+                        subscriber: newSubscriberIdInput.value, 
+                        status: newStatusSelect.value, 
+                    };
+
+                    if (!receiptData.receiptNumber || !receiptData.amount || !receiptData.date || 
+                        !receiptData.collector || !receiptData.subscriber || !receiptData.status) {
+                        showToast('الرجاء ملء جميع الحقول المطلوبة.', 'warning');
+                        return;
+                    }
+
+                    const newReceipt = await addReceipt(receiptData);
+                    showToast('تمت إضافة السند بنجاح.', 'success');
+
+                    addReceiptForm.reset();
+                    newCollectorIdInput.value = ''; 
+                    newSubscriberIdInput.value = ''; 
+                    newCollectorNameInput.value = ''; // مسح حقل الاسم المرئي للمحصل
+                    newSubscriberNameInput.value = ''; // مسح حقل الاسم المرئي للمشترك
+                    
+                    loadReceipts(1, currentFilters);
+
+                } catch (error) {
+                    console.error("Error adding new receipt:", error);
+                    showToast(error.message || 'فشل في إضافة السند.', 'error');
+                } finally {
+                    submitBtn.disabled = false;
+                    submitBtn.textContent = 'إضافة سند';
                 }
             });
 
-            document.addEventListener('click', (e) => {
-                if (!e.target.closest('.autocomplete-container')) {
-                    collectorResultsDiv.style.display = 'none';
-                }
-            });
 
             tableBody.addEventListener('click', (event) => {
                 const button = event.target.closest('button[data-action="delete"]');

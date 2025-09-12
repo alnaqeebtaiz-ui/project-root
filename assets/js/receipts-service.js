@@ -6,6 +6,10 @@
 const API_BASE_URL = 'https://alnaqeeb.onrender.com/api'; // تم تعديل هذا ليصبح الرابط الأساسي فقط
 const RECEIPTS_API_URL = `${API_BASE_URL}/receipts`; // رابط API الخاص بالسندات
 const COLLECTORS_API_URL = `${API_BASE_URL}/collectors`; // رابط API للمحصلين (للاستخدام في الـ HTML)
+const COLLECTORS_SEARCH_API_URL = `${RECEIPTS_API_URL}/search-collectors`; // رابط API للبحث عن المحصلين
+// ملاحظة: لقد وضعنا مسار البحث عن المحصلين ضمن receipts router في الخلفية، لذا نستخدم RECEIPTS_API_URL
+const SUBSCRIBERS_SEARCH_API_URL = `${RECEIPTS_API_URL}/search-subscribers`; // رابط API للبحث عن المشتركين
+// ملاحظة: لقد وضعنا مسار البحث عن المشتركين ضمن receipts router في الخلفية، لذا نستخدم RECEIPTS_API_URL
 
 // دالة مساعدة لجلب التوكن من localStorage
 const getAuthToken = () => localStorage.getItem('jwtToken'); // نستخدم 'jwtToken'
@@ -145,6 +149,55 @@ export async function deleteReceipt(receiptId) {
  * @param {Array<Object>} receipts - مصفوفة من كائنات السندات.
  * @returns {Promise<object>}
  */
+
+
+/**
+ * البحث عن المحصلين بناءً على نص البحث.
+ * @param {string} query - نص البحث عن المحصل.
+ * @returns {Promise<Array>} - مصفوفة من كائنات المحصلين المطابقة.
+ */
+export async function searchCollectors(query) {
+    try {
+        const headers = getAuthHeaders(); // جلب الهيدرات مع التوكن
+        const params = new URLSearchParams({ query }); // بناء معلمات URL (query=...)
+        const url = `${COLLECTORS_SEARCH_API_URL}?${params.toString()}`;
+
+        const response = await fetch(url, { headers }); // تمرير الهيدرات
+
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.message || 'فشل في البحث عن المحصلين.');
+        }
+        return await response.json();
+    } catch (error) {
+        console.error("Error searching collectors:", error);
+        throw error;
+    }
+}
+
+/**
+ * البحث عن المشتركين بناءً على نص البحث.
+ * @param {string} query - نص البحث عن المشترك.
+ * @returns {Promise<Array>} - مصفوفة من كائنات المشتركين المطابقة.
+ */
+export async function searchSubscribers(query) {
+    try {
+        const headers = getAuthHeaders(); // جلب الهيدرات مع التوكن
+        const params = new URLSearchParams({ query }); // بناء معلمات URL (query=...)
+        const url = `${SUBSCRIBERS_SEARCH_API_URL}?${params.toString()}`;
+
+        const response = await fetch(url, { headers }); // تمرير الهيدرات
+
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.message || 'فشل في البحث عن المشتركين.');
+        }
+        return await response.json();
+    } catch (error) {
+        console.error("Error searching subscribers:", error);
+        throw error;
+    }
+}
 export async function batchAddReceipts(receipts) {
     try {
         const headers = getAuthHeaders(); // جلب الهيدرات مع التوكن
