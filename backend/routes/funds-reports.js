@@ -170,10 +170,30 @@ async function generateAnnualReport(filters) {
 
 // --- دوال مساعدة ---
 function getCycleDates(year, month, cycle) {
-    const jsMonth = month - 1;
-    if (cycle == 1) return { start: new Date(year, jsMonth, 1), end: new Date(year, jsMonth, 11) };
-    if (cycle == 2) return { start: new Date(year, jsMonth, 11), end: new Date(year, jsMonth, 21) };
-    if (cycle == 3) return { start: new Date(year, jsMonth, 21), end: new Date(year, jsMonth + 1, 1) };
+    const jsMonth = month - 1; // JavaScript months are 0-indexed
+
+    let startDate, endDate;
+
+    if (cycle == 1) {
+        startDate = new Date(year, jsMonth, 1);
+        endDate = new Date(year, jsMonth, 10);
+    } else if (cycle == 2) {
+        startDate = new Date(year, jsMonth, 11);
+        endDate = new Date(year, jsMonth, 20);
+    } else if (cycle == 3) {
+        startDate = new Date(year, jsMonth, 21);
+        endDate = new Date(year, jsMonth + 1, 0); // آخر يوم في الشهر الحالي
+    } else {
+        // يجب أن نُعالج حالة الدورة غير الصالحة، رمي خطأ هو الأفضل لضمان عدم استمرار العملية ببيانات خاطئة.
+        throw new Error(`دورة غير صالحة تم تمريرها إلى getCycleDates: ${cycle}`);
+    }
+
+    // *** هذا السطر مهم جدًا لضمان شمول اليوم الأخير كاملاً في استعلامات MongoDB $lt ***
+    // بدونه، إذا كان تاريخ السند هو 10-09-2025 الساعة 10 صباحًا، و endDate هي 10-09-2025 00:00:00 (منتصف الليل)، 
+    // فلن يتم تضمين السند.
+    endDate.setUTCHours(23, 59, 59, 999); 
+
+    return { start: startDate, end: endDate };
 }
 
 async function calculateBalanceUntil(collectorIds, date) {
