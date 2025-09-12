@@ -29,6 +29,16 @@ const getAuthHeaders = () => {
     };
 };
 
+// دالة مساعدة لمعالجة استجابات الخادم
+async function handleResponse(response) {
+    if (!response.ok) {
+        const errorData = await response.json();
+        const errorMessage = errorData.message || errorData.msg || 'حدث خطأ غير معروف.';
+        throw new Error(errorMessage);
+    }
+    return response.json();
+}
+
 /**
  * جلب جميع السندات من الخادم مع دعم ترقيم الصفحات والبحث.
  * @param {number} [page=1] - رقم الصفحة الحالي.
@@ -44,16 +54,33 @@ export async function getReceipts(page = 1, limit = 50, filters = {}) {
 
         const response = await fetch(url, { headers }); // تمرير الهيدرات
 
-        if (!response.ok) {
-            const errorData = await response.json(); // محاولة قراءة رسالة الخطأ من الخادم
-            throw new Error(errorData.msg || 'فشل في جلب بيانات السندات من الخادم.');
-        }
-        return await response.json();
+        return await handleResponse(response); // استخدام الدالة المساعدة
     } catch (error) {
         console.error("Error fetching receipts:", error);
         throw error; // إعادة رمي الخطأ ليتم التعامل معه في الواجهة الأمامية
     }
 }
+
+// 💡💡💡 دالة جديدة: جلب جميع السندات للتصدير (بدون تصفح) 💡💡💡
+// هذه الدالة ستستخدم نفس API_BASE_URL ولكن ستطلب جميع السندات
+// وقد تحتاج إلى مسار API مختلف في الخلفية (مثلاً /receipts/all)
+export async function getReceiptsForExport(filters = {}) {
+    try {
+        const headers = getAuthHeaders();
+        const params = new URLSearchParams(filters); // بناء معلمات URL من الفلاتر
+        // افتراض أن مسار /receipts/all يعيد جميع السندات المفلترة بدون تصفح
+        // تأكد من أن الـ Backend الخاص بك يدعم هذا المسار
+        const url = `${RECEIPTS_API_URL}/all?${params.toString()}`; // <--- **هذا المسار في الـ Backend يجب أن يكون موجودًا**
+        
+        const response = await fetch(url, { headers });
+        const data = await handleResponse(response);
+        return data.receipts || []; // افترض أن الـ Backend يرجع كائن { receipts: [...] }
+    } catch (error) {
+        console.error("Error fetching all receipts for export:", error);
+        throw error;
+    }
+}
+
 
 /**
  * جلب جميع المحصلين من الخادم.
@@ -63,11 +90,7 @@ export async function getCollectors() {
     try {
         const headers = getAuthHeaders(); // جلب الهيدرات مع التوكن
         const response = await fetch(COLLECTORS_API_URL, { headers }); // تمرير الهيدرات
-        if (!response.ok) {
-            const errorData = await response.json();
-            throw new Error(errorData.msg || 'فشل في جلب بيانات المحصلين من الخادم.');
-        }
-        return await response.json();
+        return await handleResponse(response);
     } catch (error) {
         console.error("Error fetching collectors:", error);
         throw error;
@@ -87,11 +110,7 @@ export async function addReceipt(receiptData) {
             headers: headers, // تمرير الهيدرات مع التوكن ونوع المحتوى
             body: JSON.stringify(receiptData)
         });
-        if (!response.ok) {
-            const errorData = await response.json();
-            throw new Error(errorData.message || 'فشلت عملية إضافة السند.');
-        }
-        return await response.json();
+        return await handleResponse(response);
     } catch (error) {
         console.error("Error adding receipt:", error);
         throw error;
@@ -111,11 +130,7 @@ export async function updateReceipt(receiptId, updatedData) {
             headers: headers, // تمرير الهيدرات مع التوكن ونوع المحتوى
             body: JSON.stringify(updatedData)
         });
-        if (!response.ok) {
-            const errorData = await response.json();
-            throw new Error(errorData.message || 'فشلت عملية تحديث السند.');
-        }
-        return await response.json();
+        return await handleResponse(response);
     } catch (error) {
         console.error("Error updating receipt:", error);
         throw error;
@@ -133,11 +148,7 @@ export async function deleteReceipt(receiptId) {
             method: 'DELETE',
             headers: headers // تمرير الهيدرات مع التوكن
         });
-        if (!response.ok) {
-            const errorData = await response.json();
-            throw new Error(errorData.message || 'فشلت عملية حذف السند.');
-        }
-        return await response.json();
+        return await handleResponse(response);
     } catch (error) {
         console.error("Error deleting receipt:", error);
         throw error;
@@ -149,7 +160,20 @@ export async function deleteReceipt(receiptId) {
  * @param {Array<Object>} receipts - مصفوفة من كائنات السندات.
  * @returns {Promise<object>}
  */
-
+export async function batchAddReceipts(receipts) {
+    try {
+        const headers = getAuthHeaders(); // جلب الهيدرات مع التوكن
+        const response = await fetch(`${RECEIPTS_API_URL}/batch`, {
+            method: 'POST',
+            headers: headers, // تمرير الهيدرات مع التوكن ونوع المحتوى
+            body: JSON.stringify(receipts)
+        });
+        return await handleResponse(response);
+    } catch (error) {
+        console.error("Error batch adding receipts:", error);
+        throw error;
+    }
+}
 
 /**
  * البحث عن المحصلين بناءً على نص البحث.
@@ -164,11 +188,7 @@ export async function searchCollectors(query) {
 
         const response = await fetch(url, { headers }); // تمرير الهيدرات
 
-        if (!response.ok) {
-            const errorData = await response.json();
-            throw new Error(errorData.message || 'فشل في البحث عن المحصلين.');
-        }
-        return await response.json();
+        return await handleResponse(response);
     } catch (error) {
         console.error("Error searching collectors:", error);
         throw error;
@@ -188,31 +208,9 @@ export async function searchSubscribers(query) {
 
         const response = await fetch(url, { headers }); // تمرير الهيدرات
 
-        if (!response.ok) {
-            const errorData = await response.json();
-            throw new Error(errorData.message || 'فشل في البحث عن المشتركين.');
-        }
-        return await response.json();
+        return await handleResponse(response);
     } catch (error) {
         console.error("Error searching subscribers:", error);
-        throw error;
-    }
-}
-export async function batchAddReceipts(receipts) {
-    try {
-        const headers = getAuthHeaders(); // جلب الهيدرات مع التوكن
-        const response = await fetch(`${RECEIPTS_API_URL}/batch`, {
-            method: 'POST',
-            headers: headers, // تمرير الهيدرات مع التوكن ونوع المحتوى
-            body: JSON.stringify(receipts)
-        });
-        if (!response.ok) {
-            const errorData = await response.json();
-            throw new Error(errorData.message || 'فشلت عملية استيراد الكشف.');
-        }
-        return await response.json();
-    } catch (error) {
-        console.error("Error batch adding receipts:", error);
         throw error;
     }
 }

@@ -7,11 +7,13 @@
     <link rel="stylesheet" href="assets/css/styles.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <style>
+        /* أنماط الحالات */
         .status-active { color: #2ecc71; font-weight: bold; }
         .status-cancelled { color: #e74c3c; font-weight: bold; }
         .status-damaged { color: #f39c12; font-weight: bold; }
         .status-error { color: #e74c3c; font-weight: bold; }
         
+        /* أنماط شريط الإجراءات العام */
         .action-bar-container {
             background-color: #fff; padding: 20px; border-radius: 10px;
             margin-bottom: 30px; box-shadow: 0 5px 15px rgba(0,0,0,0.05);
@@ -22,6 +24,7 @@
         }
         .action-bar .form-group { margin-bottom: 0; }
         
+        /* أنماط التصفح */
         .pagination-controls {
             display: flex; justify-content: center; align-items: center;
             margin-top: 20px; gap: 15px;
@@ -29,16 +32,107 @@
         .pagination-controls button { cursor: pointer; }
         #pageInfo { font-weight: bold; }
 
+        /* أنماط البحث الذكي (Autocomplete) */
         .autocomplete-container { position: relative; }
         .autocomplete-results {
-            position: absolute; top: 100%; left: 0; right: 0;
+            position: absolute; top: 100%; /* وضع النتائج أسفل حقل الإدخال */
+            left: 0; right: 0;
             background: white; border: 1px solid #ccc;
             max-height: 200px; overflow-y: auto; z-index: 1000;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+            border-radius: 5px;
         }
         .autocomplete-item {
-            padding: 8px 12px; cursor: pointer;
+            padding: 10px 12px; cursor: pointer;
+            border-bottom: 1px solid #eee;
         }
+        .autocomplete-item:last-child { border-bottom: none; }
         .autocomplete-item:hover { background-color: #f1f1f1; }
+
+        /* أنماط الـ Modal */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1001; /* أعلى من Autocomplete */
+            left: 0; top: 0;
+            width: 100%; height: 100%;
+            overflow: auto;
+            background-color: rgba(0,0,0,0.4);
+            justify-content: center; align-items: center;
+        }
+        .modal.show {
+            display: flex;
+        }
+        .modal-content {
+            background-color: #fefefe;
+            margin: auto;
+            padding: 25px;
+            border: 1px solid #888;
+            width: 90%;
+            max-width: 600px; /* حجم معقول لنموذج الإضافة */
+            border-radius: 12px;
+            box-shadow: 0 8px 25px rgba(0,0,0,0.2);
+            position: relative; /* لتمكين إغلاق الزر */
+            animation: fadeIn 0.3s ease-out;
+        }
+        .modal-header {
+            padding-bottom: 15px;
+            border-bottom: 1px solid #eee;
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .modal-header h2 {
+            margin: 0;
+            color: #333;
+        }
+        .modal-close-btn {
+            color: #aaa;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: color 0.2s ease;
+        }
+        .modal-close-btn:hover,
+        .modal-close-btn:focus {
+            color: #333;
+            text-decoration: none;
+        }
+        .modal-body .form-group {
+            margin-bottom: 15px;
+        }
+        .modal-footer {
+            padding-top: 20px;
+            border-top: 1px solid #eee;
+            margin-top: 25px;
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+        }
+
+        /* تحسينات لنموذج الإضافة داخل الـ modal */
+        #addReceiptModalForm {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px; /* مسافة بين مجموعات الحقول */
+        }
+        #addReceiptModalForm .form-group {
+            flex: 1 1 calc(50% - 10px); /* حقلين في الصف الواحد */
+            min-width: 250px; /* لتجنب أن تصبح ضيقة جدًا في الشاشات الصغيرة */
+        }
+        @media (max-width: 768px) {
+            #addReceiptModalForm .form-group {
+                flex: 1 1 100%; /* حقل واحد في الصف في الشاشات الصغيرة */
+            }
+        }
+
+        /* Animation */
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
     </style>
 </head>
 <body>
@@ -61,6 +155,8 @@
                         <button id="importReceiptsBtn" class="btn btn-success">استيراد</button>
                         <input type="file" id="excelFileInput" accept=".xlsx,.xls" style="display: none;">
                         
+                        <button id="openAddReceiptModalBtn" class="btn btn-primary">إضافة سند</button>
+
                         <div class="form-group">
                             <label for="startDateFilter">من تاريخ:</label>
                             <input type="date" id="startDateFilter" class="form-control">
@@ -89,51 +185,6 @@
                     </div>
                 </div>
 
-                <div class="add-receipt-form-container action-bar-container" style="margin-top: 20px;">
-                    <h2 style="margin-bottom: 20px;">إضافة سند جديد يدويًا</h2>
-                    <form id="addReceiptForm" class="action-bar" style="align-items: flex-start;">
-                        <div class="form-group">
-                            <label for="newReceiptNumber">رقم السند:</label>
-                            <input type="number" id="newReceiptNumber" class="form-control" required>
-                        </div>
-                        <div class="form-group">
-                            <label for="newAmount">المبلغ:</label>
-                            <input type="number" id="newAmount" class="form-control" step="0.01" required>
-                        </div>
-                        <div class="form-group">
-                            <label for="newDate">تاريخ السند:</label>
-                            <input type="date" id="newDate" class="form-control" required>
-                        </div>
-
-                        <div class="form-group autocomplete-container">
-                            <label for="newCollectorName">اسم المحصل:</label>
-                            <input type="text" id="newCollectorName" class="form-control" placeholder="ابحث عن محصل..." autocomplete="off" required>
-                            <input type="hidden" id="newCollectorId">
-                            <div id="newCollectorResults" class="autocomplete-results" style="display: none;"></div>
-                        </div>
-
-                        <div class="form-group autocomplete-container">
-                            <label for="newSubscriberName">اسم المشترك:</label>
-                            <input type="text" id="newSubscriberName" class="form-control" placeholder="ابحث عن مشترك..." autocomplete="off" required>
-                            <input type="hidden" id="newSubscriberId">
-                            <div id="newSubscriberResults" class="autocomplete-results" style="display: none;"></div>
-                        </div>
-
-                        <div class="form-group">
-                            <label for="newStatus">الحالة:</label>
-                            <select id="newStatus" class="form-control" required>
-                                <option value="active">نشط</option>
-                                <option value="cancelled">ملغي</option>
-                                <option value="damaged">تالف</option>
-                                <option value="error">خطأ</option>
-                            </select>
-                        </div>
-
-                        <button type="submit" class="btn btn-primary" style="margin-top: 30px;">إضافة سند</button>
-                        <button type="reset" class="btn btn-secondary" style="margin-top: 30px;">مسح الحقول</button>
-                    </form>
-                </div>
-                
                 <div class="table-container">
                     <table class="data-table">
                         <thead>
@@ -162,6 +213,60 @@
         </main>
     </div>
     
+    <div id="addReceiptModal" class="modal">
+        <div class="modal-content">
+            <header class="modal-header">
+                <h2>إضافة سند جديد</h2>
+                <span class="modal-close-btn" id="closeAddReceiptModalBtn">&times;</span>
+            </header>
+            <div class="modal-body">
+                <form id="addReceiptModalForm">
+                    <div class="form-group">
+                        <label for="newReceiptNumber">رقم السند:</label>
+                        <input type="number" id="newReceiptNumber" class="form-control" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="newAmount">المبلغ:</label>
+                        <input type="number" id="newAmount" class="form-control" step="0.01" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="newDate">تاريخ السند:</label>
+                        <input type="date" id="newDate" class="form-control" required>
+                    </div>
+
+                    <div class="form-group autocomplete-container">
+                        <label for="newCollectorName">اسم المحصل:</label>
+                        <input type="text" id="newCollectorName" class="form-control" placeholder="ابحث عن محصل..." autocomplete="off" required>
+                        <input type="hidden" id="newCollectorId">
+                        <div id="newCollectorResults" class="autocomplete-results" style="display: none;"></div>
+                    </div>
+
+                    <div class="form-group autocomplete-container">
+                        <label for="newSubscriberName">اسم المشترك:</label>
+                        <input type="text" id="newSubscriberName" class="form-control" placeholder="ابحث عن مشترك..." autocomplete="off" required>
+                        <input type="hidden" id="newSubscriberId">
+                        <div id="newSubscriberResults" class="autocomplete-results" style="display: none;"></div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="newStatus">الحالة:</label>
+                        <select id="newStatus" class="form-control" required>
+                            <option value="active">نشط</option>
+                            <option value="cancelled">ملغي</option>
+                            <option value="damaged">تالف</option>
+                            <option value="error">خطأ</option>
+                        </select>
+                    </div>
+
+                    <div class="modal-footer" style="width: 100%; justify-content: flex-end;">
+                        <button type="button" id="cancelAddReceiptBtn" class="btn btn-secondary">إلغاء</button>
+                        <button type="submit" class="btn btn-primary">إضافة سند</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
     <div id="deleteConfirmationModal" class="modal">
         <div class="modal-content" style="max-width: 400px;">
             <header class="modal-header"><h2>تأكيد الحذف</h2></header>
@@ -176,8 +281,7 @@
     <div id="toast" class="toast-notification"><p id="toastMessage"></p></div>
 
     <script type="module">
-        // تم تعديل الاستيراد ليشمل الدوال الجديدة والموجودة من الـ service
-        import { getReceipts, getCollectors, addReceipt, deleteReceipt, batchAddReceipts, searchCollectors, searchSubscribers } from './assets/js/receipts-service.js';
+        import { getReceipts, addReceipt, deleteReceipt, batchAddReceipts, searchCollectors, searchSubscribers, getReceiptsForExport } from './assets/js/receipts-service.js';
         import { importReceiptsFromExcel } from './assets/js/import-excel.js';
         import { showToast, sanitizeInput, formatCurrency } from './assets/js/utils.js';
 
@@ -196,23 +300,31 @@
         const pageInfo = document.getElementById('pageInfo');
         const prevPageBtn = document.getElementById('prevPageBtn');
         const nextPageBtn = document.getElementById('nextPageBtn');
+
+        // عناصر حقل البحث الذكي في الفلتر العلوي
         const collectorFilterInput = document.getElementById('collectorFilter');
         const collectorIdInput = document.getElementById('collectorIdFilter');
         const collectorResultsDiv = document.getElementById('collectorResults');
 
-        // 💡💡💡 عناصر نموذج إضافة السند الجديد - أضف هذه السطور 💡💡💡
-        const addReceiptForm = document.getElementById('addReceiptForm');
+        // 💡💡💡 عناصر النافذة المنبثقة لإضافة السند 💡💡💡
+        const addReceiptModal = document.getElementById('addReceiptModal');
+        const openAddReceiptModalBtn = document.getElementById('openAddReceiptModalBtn');
+        const closeAddReceiptModalBtn = document.getElementById('closeAddReceiptModalBtn');
+        const cancelAddReceiptBtn = document.getElementById('cancelAddReceiptBtn'); // زر الإلغاء داخل النافذة
+        const addReceiptModalForm = document.getElementById('addReceiptModalForm');
+
+        // عناصر حقول نموذج الإضافة داخل الـ Modal
         const newReceiptNumberInput = document.getElementById('newReceiptNumber');
         const newAmountInput = document.getElementById('newAmount');
         const newDateInput = document.getElementById('newDate');
         const newStatusSelect = document.getElementById('newStatus');
 
-        // عناصر البحث الذكي للمحصل في نموذج الإضافة
+        // عناصر البحث الذكي للمحصل في نموذج الإضافة (داخل الـ Modal)
         const newCollectorNameInput = document.getElementById('newCollectorName');
         const newCollectorIdInput = document.getElementById('newCollectorId');
         const newCollectorResultsDiv = document.getElementById('newCollectorResults');
 
-        // عناصر البحث الذكي للمشترك في نموذج الإضافة
+        // عناصر البحث الذكي للمشترك في نموذج الإضافة (داخل الـ Modal)
         const newSubscriberNameInput = document.getElementById('newSubscriberName');
         const newSubscriberIdInput = document.getElementById('newSubscriberId');
         const newSubscriberResultsDiv = document.getElementById('newSubscriberResults');
@@ -220,11 +332,6 @@
         function formatISODate(iso) { return iso ? iso.split('T')[0] : ''; }
 
         async function initializePage() {
-            try {
-                // ملاحظة: تم إزالة الكود القديم هنا لملء قائمة المحصلين لأننا نستخدم البحث الذكي الآن.
-            } catch (error) {
-                //showToast(error.message || 'فشل تحميل قائمة المحصلين', 'error'); // هذا الكود معطل (تعليق)
-            }
             await loadReceipts();
         }
 
@@ -234,9 +341,7 @@
             currentPage = page;
             currentFilters = filters;
             try {
-                // استخدام دالة getReceipts من الـ service التي ترسل التوكن
                 const data = await getReceipts(page, PAGE_LIMIT, filters); 
-                
                 displayReceipts(data.receipts);
                 updatePaginationControls(data);
             } catch (error) {
@@ -274,7 +379,7 @@
         }
         
         function updatePaginationControls({ currentPage, totalPages, totalReceipts }) {
-            if (totalPages > 1 || totalReceipts > 0) { // تعديل ليعرض التصفح إذا كان هناك سندات حتى لو صفحة واحدة
+            if (totalPages > 1 || totalReceipts > 0) {
                 pageInfo.textContent = `الصفحة ${currentPage} من ${totalPages} (إجمالي ${totalReceipts} سند)`;
                 prevPageBtn.disabled = currentPage <= 1;
                 nextPageBtn.disabled = currentPage >= totalPages;
@@ -305,11 +410,9 @@
             try {
                 const result = await importReceiptsFromExcel(file);
                 if (result.success) {
-                    // استخدام دالة batchAddReceipts من الـ service التي ترسل التوكن
                     const serverResponse = await batchAddReceipts(result.data); 
                     showToast(serverResponse.message, 'success');
                     if (serverResponse.errors?.length > 0) {
-                        // استخدام alert مع نص واضح لمنع المشاكل
                         const errorMessages = serverResponse.errors.map(err => {
                             if (typeof err === 'object' && err.message) return err.message;
                             return err;
@@ -321,7 +424,7 @@
                     showToast(result.error, 'error');
                 }
             } catch (error) {
-                console.error("Error during Excel import:", error); // تسجيل الخطأ كاملاً
+                console.error("Error during Excel import:", error);
                 showToast(error.message || 'فشل استيراد الملف.', 'error');
             } finally {
                 importBtn.disabled = false;
@@ -330,9 +433,48 @@
             }
         }
         
-        // 💡💡💡 استبدال دالة renderCollectorResults بالكامل بدالة renderAutocompleteResults العامة 💡💡💡
-        function renderAutocompleteResults(results, resultsDiv) { // تم تبسيط المعلمات
-            resultsDiv.innerHTML = ''; // مسح النتائج القديمة
+        async function handleExportClick() {
+            const exportBtn = document.getElementById('exportExcelBtn');
+            exportBtn.disabled = true;
+            const originalText = exportBtn.innerHTML;
+            exportBtn.innerHTML = 'جاري التصدير...'; // استخدام innerHTML لتضمين الرمز
+        
+            try {
+                // استخدام currentFilters للحصول على نفس البيانات المفلترة في الجدول
+                const allFilteredReceipts = await getReceiptsForExport(currentFilters); 
+                
+                if (allFilteredReceipts.length === 0) {
+                    showToast('لا توجد بيانات للتصدير', 'warning');
+                    return;
+                }
+
+                const worksheetData = allFilteredReceipts.map(receipt => ({
+                    'رقم السند': receipt.receiptNumber,
+                    'المبلغ': receipt.amount,
+                    'اسم المشترك': receipt.subscriber ? receipt.subscriber.name : 'غير معروف',
+                    'كود المشترك': receipt.subscriber ? receipt.subscriber.code : 'غير معروف',
+                    'اسم المحصل': receipt.collector ? receipt.collector.name : 'غير معروف',
+                    'كود المحصل': receipt.collector ? receipt.collector.collectorCode : 'غير معروف',
+                    'تاريخ التحصيل': formatISODate(receipt.date),
+                    'الحالة': receipt.status
+                }));
+
+                const ws = XLSX.utils.json_to_sheet(worksheetData);
+                const wb = XLSX.utils.book_new();
+                XLSX.utils.book_append_sheet(wb, ws, "السندات");
+                XLSX.writeFile(wb, "السندات_المفلترة.xlsx");
+                showToast('تم تصدير البيانات بنجاح', 'success');
+            } catch (error) {
+                console.error("Error exporting data:", error);
+                showToast(error.message || 'فشل تصدير البيانات.', 'error');
+            } finally {
+                exportBtn.disabled = false;
+                exportBtn.innerHTML = originalText;
+            }
+        }
+
+        function renderAutocompleteResults(results, resultsDiv) {
+            resultsDiv.innerHTML = '';
             if (results.length === 0) {
                 resultsDiv.style.display = 'none';
                 return;
@@ -340,15 +482,18 @@
             results.forEach(item => {
                 const resultItem = document.createElement('div');
                 resultItem.className = 'autocomplete-item';
-                // بناء النص المعروض حسب نوع العنصر (محتصل أو مشترك)
-                if (item.collectorCode) { // إذا كان محصلاً
+                if (item.collectorCode) {
                     resultItem.textContent = `${item.name} (${item.collectorCode})`;
-                } else { // إذا كان مشتركاً (أو نوع آخر مستقبلاً)
+                } else if (item.code) { // افتراض أن المشتركين لديهم حقل 'code' أيضًا
+                    resultItem.textContent = `${item.name} (${item.code})`;
+                }
+                else {
                     resultItem.textContent = item.name;
                 }
-                resultItem.dataset.id = item._id; // تخزين الـ ID
-                resultItem.dataset.name = item.name; // اسم الكائن
-                resultItem.dataset.collectorCode = item.collectorCode || ''; // كود المحصل (إذا كان موجوداً)
+                resultItem.dataset.id = item._id;
+                resultItem.dataset.name = item.name;
+                resultItem.dataset.collectorCode = item.collectorCode || '';
+                resultItem.dataset.subscriberCode = item.code || ''; // تخزين كود المشترك
                 resultsDiv.appendChild(resultItem);
             });
             resultsDiv.style.display = 'block';
@@ -367,7 +512,6 @@
         async function confirmDelete() {
             if (!receiptIdToDelete) return;
             try {
-                // استخدام دالة deleteReceipt من الـ service التي ترسل التوكن
                 await deleteReceipt(receiptIdToDelete); 
                 showToast('تم حذف السند بنجاح.', 'success');
                 loadReceipts(1, currentFilters); 
@@ -378,13 +522,40 @@
             }
         }
 
+        // 💡💡💡 وظائف فتح وإغلاق Modal إضافة السند 💡💡💡
+        function openAddReceiptModal() {
+            addReceiptModal.classList.add('show');
+            // عند الفتح، يمكن إعادة تعيين النموذج
+            addReceiptModalForm.reset();
+            newCollectorIdInput.value = ''; 
+            newSubscriberIdInput.value = ''; 
+            newCollectorResultsDiv.style.display = 'none';
+            newSubscriberResultsDiv.style.display = 'none';
+        }
+
+        function closeAddReceiptModal() {
+            addReceiptModal.classList.remove('show');
+        }
+
         function setupEventListeners() {
             document.getElementById('importReceiptsBtn').addEventListener('click', () => document.getElementById('excelFileInput').click());
             document.getElementById('excelFileInput').addEventListener('change', handleExcelImport);
             document.getElementById('exportExcelBtn').addEventListener('click', handleExportClick);
             filterBtn.addEventListener('click', handleFilter);
 
-            // 💡💡💡 تم تصحيح استخدام renderAutocompleteResults هنا 💡💡💡
+            // 💡💡💡 إضافة معالج الحدث لزر فتح Modal الإضافة 💡💡💡
+            openAddReceiptModalBtn.addEventListener('click', openAddReceiptModal);
+            closeAddReceiptModalBtn.addEventListener('click', closeAddReceiptModal);
+            cancelAddReceiptBtn.addEventListener('click', closeAddReceiptModal); // زر الإلغاء داخل النافذة
+            
+            // إغلاق الـ modal عند النقر خارجها
+            addReceiptModal.addEventListener('click', (e) => {
+                if (e.target === addReceiptModal) {
+                    closeAddReceiptModal();
+                }
+            });
+
+            // معالج البحث الذكي للمحصل في الفلتر العلوي
             collectorFilterInput.addEventListener('keyup', () => {
                 clearTimeout(debounceTimer); 
                 const term = collectorFilterInput.value.trim(); 
@@ -407,7 +578,7 @@
                 }, 300); 
             });
 
-            // 💡💡💡 أضف معالج الحدث هذا لحقل اسم المحصل في نموذج الإضافة 💡💡💡
+            // 💡💡💡 معالج البحث الذكي للمحصل في نموذج الإضافة (داخل الـ Modal) 💡💡💡
             newCollectorNameInput.addEventListener('keyup', () => {
                 clearTimeout(debounceTimer); 
                 const term = newCollectorNameInput.value.trim();
@@ -425,11 +596,12 @@
                     } catch (error) {
                         console.error("Error fetching new receipt collector search results:", error);
                         renderAutocompleteResults([], newCollectorResultsDiv); 
+                        showToast('فشل البحث عن المحصلين في نموذج الإضافة', 'error');
                     }
                 }, 300); 
             });
 
-            // 💡💡💡 أضف معالج الحدث هذا لحقل اسم المشترك في نموذج الإضافة 💡💡💡
+            // 💡💡💡 معالج البحث الذكي للمشترك في نموذج الإضافة (داخل الـ Modal) 💡💡💡
             newSubscriberNameInput.addEventListener('keyup', () => {
                 clearTimeout(debounceTimer); 
                 const term = newSubscriberNameInput.value.trim();
@@ -447,33 +619,33 @@
                     } catch (error) {
                         console.error("Error fetching new receipt subscriber search results:", error);
                         renderAutocompleteResults([], newSubscriberResultsDiv); 
+                        showToast('فشل البحث عن المشتركين في نموذج الإضافة', 'error');
                     }
                 }, 300); 
             });
 
-            // 💡💡💡 استبدل معالج حدث document.addEventListener('click', ...) بالكامل بهذا الكود 💡💡💡
+            // معالج النقر العام لعناصر البحث الذكي وإخفاء القوائم
             document.addEventListener('click', (e) => {
-                // --- معالجة النقر على عنصر من نتائج البحث الذكي ---
                 const item = e.target.closest('.autocomplete-item');
                 if (item) {
                     const id = item.dataset.id;
                     const name = item.dataset.name;
-                    const collectorCode = item.dataset.collectorCode; // قد يكون فارغاً للمشتركين
+                    const collectorCode = item.dataset.collectorCode;
+                    const subscriberCode = item.dataset.subscriberCode; // لاستخدامها إذا كان المشترك له كود
 
-                    // تحديد أي حقل إدخال هو المستهدف بناءً على الـ div الذي يحتوي النتيجة
                     const parentResultsDiv = item.closest('.autocomplete-results');
 
-                    if (parentResultsDiv === collectorResultsDiv) { // نتائج فلتر المحصل
+                    if (parentResultsDiv === collectorResultsDiv) { // نتائج فلتر المحصل الرئيسي
                         collectorFilterInput.value = collectorCode ? `${name} (${collectorCode})` : name;
                         collectorIdInput.value = id;
-                    } else if (parentResultsDiv === newCollectorResultsDiv) { // نتائج محصل الإضافة الجديدة
+                    } else if (parentResultsDiv === newCollectorResultsDiv) { // نتائج محصل الإضافة الجديدة (داخل الـ Modal)
                         newCollectorNameInput.value = collectorCode ? `${name} (${collectorCode})` : name;
                         newCollectorIdInput.value = id;
-                    } else if (parentResultsDiv === newSubscriberResultsDiv) { // نتائج مشترك الإضافة الجديدة
-                        newSubscriberNameInput.value = name;
+                    } else if (parentResultsDiv === newSubscriberResultsDiv) { // نتائج مشترك الإضافة الجديدة (داخل الـ Modal)
+                        newSubscriberNameInput.value = subscriberCode ? `${name} (${subscriberCode})` : name;
                         newSubscriberIdInput.value = id;
                     }
-
+                    
                     // إخفاء جميع قوائم البحث الذكي بعد الاختيار
                     collectorResultsDiv.style.display = 'none';
                     newCollectorResultsDiv.style.display = 'none';
@@ -481,16 +653,16 @@
                     return; 
                 }
 
-                // --- معالجة النقر خارج أي حاوية بحث تلقائي لإخفاء القوائم ---
-                if (!e.target.closest('.autocomplete-container')) {
+                // إخفاء جميع قوائم البحث الذكي عند النقر خارجها
+                if (!e.target.closest('.autocomplete-container') && !e.target.closest('.autocomplete-results')) {
                     collectorResultsDiv.style.display = 'none';
                     newCollectorResultsDiv.style.display = 'none';
                     newSubscriberResultsDiv.style.display = 'none';
                 }
             });
             
-            // 💡💡💡 أضف معالج الحدث هذا لنموذج إضافة السند الجديد 💡💡💡
-            addReceiptForm.addEventListener('submit', async (e) => {
+            // 💡💡💡 معالج حدث إرسال نموذج إضافة السند الجديد (داخل الـ Modal) 💡💡💡
+            addReceiptModalForm.addEventListener('submit', async (e) => {
                 e.preventDefault(); 
 
                 const submitBtn = e.target.querySelector('button[type="submit"]');
@@ -507,22 +679,20 @@
                         status: newStatusSelect.value, 
                     };
 
-                    if (!receiptData.receiptNumber || !receiptData.amount || !receiptData.date || 
+                    if (!receiptData.receiptNumber || isNaN(receiptData.receiptNumber) ||
+                        !receiptData.amount || isNaN(receiptData.amount) ||
+                        !receiptData.date || 
                         !receiptData.collector || !receiptData.subscriber || !receiptData.status) {
-                        showToast('الرجاء ملء جميع الحقول المطلوبة.', 'warning');
+                        showToast('الرجاء ملء جميع الحقول المطلوبة بشكل صحيح.', 'warning');
                         return;
                     }
 
                     const newReceipt = await addReceipt(receiptData);
                     showToast('تمت إضافة السند بنجاح.', 'success');
 
-                    addReceiptForm.reset();
-                    newCollectorIdInput.value = ''; 
-                    newSubscriberIdInput.value = ''; 
-                    newCollectorNameInput.value = ''; // مسح حقل الاسم المرئي للمحصل
-                    newSubscriberNameInput.value = ''; // مسح حقل الاسم المرئي للمشترك
+                    closeAddReceiptModal(); // إغلاق النافذة المنبثقة بعد الإضافة
                     
-                    loadReceipts(1, currentFilters);
+                    loadReceipts(1, currentFilters); // إعادة تحميل السندات لتحديث الجدول
 
                 } catch (error) {
                     console.error("Error adding new receipt:", error);
