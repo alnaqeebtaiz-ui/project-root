@@ -27,7 +27,8 @@ const app = express();
 // هذا يسمح لـ Netlify بالوصول إلى هذا الـ backend
 app.use(cors({
     origin: 'https://aesthetic-speculoos-17baf7.netlify.app', // <--- هذا هو رابط Netlify الصحيح
-    methods: ['GET', 'POST', 'PUT', 'DELETE'],
+    // تم إضافة 'PATCH' إلى قائمة الأساليب المسموح بها هنا
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'], // <--- التعديل تم هنا
     allowedHeaders: ['Content-Type', 'x-auth-token'] // مهم: السماح برأس x-auth-token للمصادقة
 }));
 
@@ -58,7 +59,7 @@ app.use('/api/users', usersRoutes);
 const dbURI = process.env.MONGO_URI;
 
 if (!dbURI) {
-    console.error('خطأ: رابط قاعدة البيانات MONGO_URI غير موجود في البيئة.'); // <--- رسالة خطأ محدثة
+    console.error('خطأ: رابط قاعدة البيانات MONGO_URI غير موجود في البيئة.');
     process.exit(1);
 }
 
@@ -66,7 +67,7 @@ mongoose.connect(dbURI)
     .then(() => {
         console.log('تم الاتصال بقاعدة بيانات MongoDB Atlas بنجاح!');
 
-        const PORT = process.env.PORT || 5000; // <--- يمكن تغيير هذا إلى 5000 أو ما تفضله للتشغيل المحلي
+        const PORT = process.env.PORT || 5000;
 
         app.listen(PORT, () => {
             console.log(`Server is running on port ${PORT}`);

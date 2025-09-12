@@ -59,10 +59,35 @@ router.get('/', async (req, res) => {
         });
 
     } catch (err) {
-        res.status(500).json({ message: 'حدث خطأ في الخادم' });
+        console.error(err); // طباعة الخطأ الكامل في الكونسول لمزيد من التفاصيل
+        res.status(500).json({ message: 'حدث خطأ في الخادم عند جلب التوريدات.' });
     }
 });
-// --- نهاية التعديل ---
+
+// **********************************************
+// 💡💡💡 المسار الجديد الذي يجب إضافته: جلب سند توريد واحد بواسطة الـ ID 💡💡💡
+// **********************************************
+router.get('/:id', async (req, res) => {
+    try {
+        const deposit = await Deposit.findById(req.params.id)
+                                    .populate('collector', 'name collectorCode'); // جلب بيانات المحصل أيضًا
+        if (!deposit) {
+            return res.status(404).json({ message: 'لم يتم العثور على سجل التوريد.' });
+        }
+        res.json(deposit);
+    } catch (err) {
+        console.error(err); // طباعة الخطأ الكامل في الكونسول لمزيد من التفاصيل
+        // إذا كان الـ ID غير صالح (ليس ObjectId صحيح)، سيتم التعامل معه هنا.
+        if (err.kind === 'ObjectId') {
+            return res.status(400).json({ message: 'صيغة معرف سجل التوريد غير صالحة.' });
+        }
+        res.status(500).json({ message: 'حدث خطأ في الخادم عند جلب سجل التوريد.' });
+    }
+});
+// **********************************************
+// نهاية المسار الجديد
+// **********************************************
+
 
 // المسار 2: إضافة سجل توريد جديد (POST /api/deposits)
 // 💡💡💡 تمت إضافة `authorizeRoles('admin', 'manager', 'collector')` هنا 💡💡💡
@@ -79,6 +104,7 @@ router.post('/', authorizeRoles('admin', 'manager', 'collector'), async (req, re
         const newDeposit = await deposit.save();
         res.status(201).json(newDeposit);
     } catch (err) {
+        console.error(err); // طباعة الخطأ الكامل في الكونسول
         res.status(400).json({ message: 'فشل في إضافة سجل التوريد. تأكد من إدخال كل الحقول المطلوبة.' });
     }
 });
@@ -88,6 +114,11 @@ router.post('/', authorizeRoles('admin', 'manager', 'collector'), async (req, re
 // هذا يعني أن تحديث سجل توريد يتطلب أن يكون المستخدم "مدير" أو "مشرف" (مسجل دخول ولديه هذا الدور).
 router.patch('/:id', authorizeRoles('admin', 'manager'), async (req, res) => {
     try {
+        // التحقق من صحة الـ ID قبل البحث
+        if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+            return res.status(400).json({ message: 'معرف سجل التوريد غير صالح.' });
+        }
+
         const updatedDeposit = await Deposit.findByIdAndUpdate(
             req.params.id, 
             req.body, 
@@ -95,11 +126,12 @@ router.patch('/:id', authorizeRoles('admin', 'manager'), async (req, res) => {
         );
 
         if (!updatedDeposit) {
-            return res.status(404).json({ message: 'لم يتم العثور على سجل التوريد' });
+            return res.status(404).json({ message: 'لم يتم العثور على سجل التوريد للتحديث.' });
         }
         
         res.json(updatedDeposit);
     } catch (err) {
+        console.error(err); // طباعة الخطأ الكامل في الكونسول
         res.status(400).json({ message: 'فشل في تحديث بيانات السجل.' });
     }
 });
@@ -109,14 +141,20 @@ router.patch('/:id', authorizeRoles('admin', 'manager'), async (req, res) => {
 // هذا يعني أن حذف سجل توريد يتطلب أن يكون المستخدم "مدير" فقط (مسجل دخول ولديه هذا الدور).
 router.delete('/:id', authorizeRoles('admin'), async (req, res) => {
     try {
+        // التحقق من صحة الـ ID قبل الحذف
+        if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+            return res.status(400).json({ message: 'معرف سجل التوريد غير صالح.' });
+        }
+
         const deletedDeposit = await Deposit.findByIdAndDelete(req.params.id);
 
         if (!deletedDeposit) {
-            return res.status(404).json({ message: 'لم يتم العثور على سجل التوريد' });
+            return res.status(404).json({ message: 'لم يتم العثور على سجل التوريد للحذف.' });
         }
 
         res.json({ message: 'تم حذف سجل التوريد بنجاح' });
     } catch (err) {
+        console.error(err); // طباعة الخطأ الكامل في الكونسول
         res.status(500).json({ message: 'حدث خطأ في الخادم أثناء محاولة الحذف.' });
     }
 });
