@@ -202,7 +202,7 @@
                     }
                 },
                 formatEstimatedDate(dateString) {
-                    return dateString ? moment(dateString).format('YYYY-MM-DD') : 'N/A';
+                    return dateString ? moment(dateString).locale('en').format('YYYY-MM-DD') : 'N/A';
                 }
             }
         });

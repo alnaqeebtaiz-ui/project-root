@@ -48,7 +48,7 @@ router.get('/missing-receipts', async (req, res) => {
                 
                 if ((!start || estimatedDate >= start) && (!end || estimatedDate <= end)) {
                     allMissingReceipts.push({
-                        collectorName: notebook.collector ? notebook.collector.name : 'N/A', // اسم المحصل
+                        collectorName: notebook.collectorId ? notebook.collectorId.name : (notebook.collectorName || 'غير محدد'), // اسم المحصل
                         receiptNumber: missing.receiptNumber,
                         notebookRange: `${notebook.startNumber} - ${notebook.endNumber}`,
                         estimatedDate: missing.estimatedDate, // يسحب كما هو من قاعدة البيانات
