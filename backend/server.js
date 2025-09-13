@@ -17,6 +17,7 @@ const subReportsRouter = require('./routes/sub-reports');
 const authRoutes = require('./routes/auth');
 const dashboardRouter = require('./routes/dashboard');
 const usersRoutes = require('./routes/users');
+const reportRoutes = require('./routes/note-reports');
 
 // إنشاء تطبيق Express
 const app = express();
@@ -52,6 +53,8 @@ app.use('/api/sub-reports', subReportsRouter);
 app.use('/api/auth', authRoutes);
 app.use('/api/dashboard', dashboardRouter);
 app.use('/api/users', usersRoutes);
+app.use('/api/note-reports', reportRoutes);
+
 
 
 // --- الاتصال بقاعدة البيانات ---
