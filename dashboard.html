@@ -12,7 +12,6 @@
       --secondary: #f9c74f;
       --light: #f8f9fa;
       --dark: #212529;
-      --success: #28a745;
       --card-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
       --hover-transform: scale(1.03);
     }
@@ -39,7 +38,7 @@
 
     header {
       text-align: center;
-      margin-bottom: 40px;
+      margin-bottom: 50px;
       color: white;
     }
 
@@ -55,10 +54,33 @@
       opacity: 0.9;
     }
 
+    /* أقسام البطاقات */
+    .section-title {
+      color: white;
+      font-size: 1.8rem;
+      margin: 40px 0 20px 0;
+      text-align: center;
+      position: relative;
+      padding-bottom: 10px;
+    }
+
+    .section-title::after {
+      content: '';
+      position: absolute;
+      bottom: 0;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 80px;
+      height: 4px;
+      background: var(--secondary);
+      border-radius: 2px;
+    }
+
     .dashboard-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
       gap: 25px;
+      margin-bottom: 60px;
     }
 
     .card {
@@ -71,7 +93,7 @@
       position: relative;
       overflow: hidden;
       cursor: pointer;
-      height: 220px;
+      height: 180px;
       display: flex;
       flex-direction: column;
       justify-content: center;
@@ -103,9 +125,8 @@
     }
 
     .card i {
-      font-size: 3.5rem;
+      font-size: 3rem;
       margin-bottom: 15px;
-      color: var(--primary);
       transition: transform 0.3s;
     }
 
@@ -114,31 +135,52 @@
     }
 
     .card h3 {
-      font-size: 1.5rem;
+      font-size: 1.4rem;
       margin-bottom: 8px;
       font-weight: 600;
       color: var(--primary);
     }
 
     .card p {
-      font-size: 0.95rem;
+      font-size: 0.9rem;
       opacity: 0.85;
       line-height: 1.5;
     }
 
-    /* تخصيص الألوان لكل بطاقة */
+    /* تخصيص الألوان حسب النوع */
+    /* الإدارة */
     .card.subscribers { background: linear-gradient(145deg, #e0f7ff, #b3e5fc); }
     .card.subscribers i { color: #0288d1; }
+
     .card.collectors { background: linear-gradient(145deg, #fff3e0, #ffccbc); }
     .card.collectors i { color: #e65100; }
+
     .card.funds { background: linear-gradient(145deg, #f0f4ff, #d1e7ff); }
     .card.funds i { color: #1565c0; }
+
     .card.receipts { background: linear-gradient(145deg, #f5f0ff, #e1bee7); }
     .card.receipts i { color: #7b1fa2; }
+
     .card.deposits { background: linear-gradient(145deg, #f0f8ff, #e3f2fd); }
     .card.deposits i { color: #0277bd; }
+
     .card.notebooks { background: linear-gradient(145deg, #f9fbe7, #f0f4c3); }
     .card.notebooks i { color: #827717; }
+
+    /* التقارير */
+    .card.sub-reports { background: linear-gradient(145deg, #e8f5e9, #c8e6c9); }
+    .card.sub-reports i { color: #2e7d32; }
+
+    .card.reports { background: linear-gradient(145deg, #fff3e0, #ffecb3); }
+    .card.reports i { color: #ff6d00; }
+
+    .card.funds-reports { background: linear-gradient(145deg, #e3f2fd, #bbdefb); }
+    .card.funds-reports i { color: #1565c0; }
+
+    .card.note-reports { background: linear-gradient(145deg, #f3e5f5, #e1bee7); }
+    .card.note-reports i { color: #7b1fa2; }
+
+    /* النظام */
     .card.admin-users { background: linear-gradient(145deg, #fff3e0, #ffecb3); }
     .card.admin-users i { color: #ff6d00; }
 
@@ -152,17 +194,21 @@
         font-size: 2rem;
       }
 
+      .section-title {
+        font-size: 1.5rem;
+      }
+
       .card {
         padding: 25px;
-        height: 200px;
+        height: 160px;
       }
 
       .card i {
-        font-size: 3rem;
+        font-size: 2.5rem;
       }
 
       .card h3 {
-        font-size: 1.3rem;
+        font-size: 1.2rem;
       }
     }
 
@@ -189,72 +235,103 @@
     .card:nth-child(5) { animation-delay: 0.5s; }
     .card:nth-child(6) { animation-delay: 0.6s; }
     .card:nth-child(7) { animation-delay: 0.7s; }
+    .card:nth-child(8) { animation-delay: 0.8s; }
+    .card:nth-child(9) { animation-delay: 0.9s; }
+    .card:nth-child(10) { animation-delay: 1.0s; }
+    .card:nth-child(11) { animation-delay: 1.1s; }
   </style>
 </head>
 <body>
 
   <div class="container">
+
     <header>
       <h1>لوحة التحكم</h1>
       <p>برنامج إدارة التحصيل - النقيب للكهرباء</p>
     </header>
 
+    <!-- القسم: الإدارة -->
+    <h2 class="section-title">الإدارة</h2>
     <div class="dashboard-grid">
-
-      <!-- مشتركين -->
       <a href="subscribers.html" class="card subscribers">
         <i class="fas fa-user-friends"></i>
-        <h3>المشتركين</h3>
-        <p>إدارة المشتركين وتقاريرهم في مكان واحد</p>
+        <h3>إدارة المشتركين</h3>
+        <p>إضافة، تعديل، حذف المشتركين</p>
       </a>
 
-      <!-- محصلون -->
       <a href="collectors.html" class="card collectors">
         <i class="fas fa-hand-holding-usd"></i>
-        <h3>المحصلون</h3>
-        <p>إدارة المحصلين وتقارير أدائهم</p>
+        <h3>إدارة المحصلين</h3>
+        <p>إدارة فرق التحصيل وتوزيع المهام</p>
       </a>
 
-      <!-- صناديق -->
       <a href="funds.html" class="card funds">
         <i class="fas fa-piggy-bank"></i>
-        <h3>الصناديق</h3>
-        <p>إدارة الصناديق وتحديث رصيدها</p>
+        <h3>إدارة الصناديق</h3>
+        <p>تسجيل وإدارة صناديق التحصيل</p>
       </a>
 
-      <!-- سندات -->
       <a href="receipts.html" class="card receipts">
         <i class="fas fa-receipt"></i>
-        <h3>السندات</h3>
-        <p>إصدار وتسجيل السندات وتحليلها</p>
+        <h3>إدارة السندات</h3>
+        <p>إصدار وتسجيل السندات المالية</p>
       </a>
 
-      <!-- توريد -->
       <a href="deposits.html" class="card deposits">
         <i class="fas fa-arrow-up"></i>
-        <h3>التوريد</h3>
-        <p>تسجيل وإدارة عمليات التوريد</p>
+        <h3>إدارة التوريد</h3>
+        <p>تسجيل عمليات التوريد والتحويلات</p>
       </a>
 
-      <!-- دفاتر -->
       <a href="notebooks.html" class="card notebooks">
         <i class="fas fa-book-open"></i>
-        <h3>الدفاتر</h3>
-        <p>السجلات اليومية والمحاسبية</p>
+        <h3>إدارة الدفاتر</h3>
+        <p>سجلات المحاسبة اليومية</p>
+      </a>
+    </div>
+
+    <!-- القسم: التقارير -->
+    <h2 class="section-title">التقارير</h2>
+    <div class="dashboard-grid">
+      <a href="sub-reports.html" class="card sub-reports">
+        <i class="fas fa-chart-line"></i>
+        <h3>تقارير المشتركين</h3>
+        <p>تحليل التحصيل، المتأخرات، التغطية</p>
       </a>
 
-      <!-- نظام -->
+      <a href="reports.html" class="card reports">
+        <i class="fas fa-chart-bar"></i>
+        <h3>تقارير المحصلين</h3>
+        <p>أداء المحصلين، المبالغ المستلمة</p>
+      </a>
+
+      <a href="funds-reports.html" class="card funds-reports">
+        <i class="fas fa-file-invoice-dollar"></i>
+        <h3>تقارير الصناديق</h3>
+        <p>حركة الصناديق، الرصيد، الحركات</p>
+      </a>
+
+      <a href="note-reports.html" class="card note-reports">
+        <i class="fas fa-file-alt"></i>
+        <h3>تقارير السندات</h3>
+        <p>تصنيف السندات، التاريخ، الحالة</p>
+      </a>
+    </div>
+
+    <!-- القسم: النظام -->
+    <h2 class="section-title">النظام</h2>
+    <div class="dashboard-grid">
       <a href="admin_users.html" class="card admin-users">
         <i class="fas fa-user-shield"></i>
-        <h3>النظام</h3>
-        <p>إدارة المستخدمين والأذونات</p>
+        <h3>إدارة المستخدمين</h3>
+        <p>صلاحيات، تسجيل دخول، دورات المستخدمين</p>
       </a>
-
     </div>
+
   </div>
 
   <script>
-    // إضافة تأثير الخفوت عند النقر (للتجربة)
+    // تأثير نقر خفيف
     document.querySelectorAll('.card').forEach(card => {
       card.addEventListener('click', function() {
         this.style.transform = 'scale(0.98)';
