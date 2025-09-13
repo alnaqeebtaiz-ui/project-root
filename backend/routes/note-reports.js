@@ -29,7 +29,7 @@ router.get('/missing-receipts', async (req, res) => {
         }
 
         const notebooks = await Notebook.find(matchQuery)
-            .populate('collector', 'name') // لجلب اسم المحصل
+            .populate('collectorId', 'name')
             .sort({ 'collector.name': 1, startNumber: 1 }); // ترتيب حسب المحصل ثم رقم الدفتر
 
         let allMissingReceipts = [];
