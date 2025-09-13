@@ -26,7 +26,7 @@ const app = express();
 // CORS setup (مهم جداً للتواصل بين الـ frontend والـ backend)
 // هذا يسمح لـ Netlify بالوصول إلى هذا الـ backend
 app.use(cors({
-    origin: 'https://alnaqeebtaiz-ui.github.io/', // <--- هذا هو رابط Netlify الصحيح
+    origin: 'https://alnaqeebtaiz-ui.github.io', // <--- هذا هو رابط Netlify الصحيح
     // تم إضافة 'PATCH' إلى قائمة الأساليب المسموح بها هنا
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'], // <--- التعديل تم هنا
     allowedHeaders: ['Content-Type', 'x-auth-token'] // مهم: السماح برأس x-auth-token للمصادقة
