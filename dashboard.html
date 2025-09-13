@@ -6,305 +6,226 @@
     <title>لوحة التحكم - برنامج إدارة التحصيل</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.1.1/css/all.min.css">
     <style>
-        /* خطوط */
-        @import url('https://fonts.googleapis.com/css2?family=Almarai:wght@300;400;600;700&family=Cairo:wght@700;900&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Almarai:wght@400;700&family=Cairo:wght@700;900&display=swap');
 
-        :root{
-            --bg:#0f1724; /* خلفية داكنة للخلفية العامة */
-            --panel:#ffffff; /* لوحات داخلية بيضاء */
-            --muted:#7b8794;
-            --primary:#2f66f6; /* أزرق جذاب */
-            --accent:#21c58b; /* أخضر ثانوي */
-            --danger:#ff6b6b;
-            --glass: rgba(255,255,255,0.06);
-            --glass-strong: rgba(255,255,255,0.09);
-            --shadow: 0 10px 30px rgba(2,6,23,0.6);
-            --radius:14px;
-            --gap:18px;
+        :root {
+            --bg-color: #f9fafc;
+            --header-bg: #ffffff;
+            --card-bg: #ffffff;
+            --border-color: #e5e7eb;
+            --text-primary: #1f2937;
+            --text-secondary: #6b7280;
+            --accent-blue: #3b82f6;
+            --accent-green: #10b981;
+            --accent-purple: #8b5cf6;
+            --accent-danger: #ef4444;
+            --shadow-light: 0 4px 10px rgba(0, 0, 0, 0.05);
+            --shadow-medium: 0 8px 20px rgba(0, 0, 0, 0.08);
         }
 
-        /* Reset بسيط */
-        *{box-sizing:border-box}
-        html,body{height:100%}
-        body{
-            margin:0;
-            font-family:'Almarai',sans-serif;
-            background: linear-gradient(180deg,#071021 0%, #0b1b2f 100%);
-            color:#0b1220;
-            -webkit-font-smoothing:antialiased;
-            -moz-osx-font-smoothing:grayscale;
-            direction:rtl;
-            min-height:100vh;
-            display:flex;
-            align-items:center;
-            justify-content:center;
-            padding:30px;
+        body {
+            font-family: 'Almarai', sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-primary);
+            margin: 0;
+            padding: 0;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
         }
 
-        /* إطار مركزي */
-        .dashboard-wrap{
-            width:100%;
-            max-width:1200px;
-            background: linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0.02));
-            border-radius:18px;
-            box-shadow: var(--shadow);
-            overflow:hidden;
-            border:1px solid rgba(255,255,255,0.04);
+        .app-header {
+            background-color: var(--header-bg);
+            padding: 15px 25px;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: var(--shadow-light);
         }
 
-        /* Header */
-        .app-header{
-            display:flex;
-            align-items:center;
-            justify-content:space-between;
-            gap:12px;
-            padding:16px 20px;
-            background: linear-gradient(90deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));
-            backdrop-filter: blur(6px);
+        .app-branding {
+            display: flex;
+            align-items: center;
+            gap: 10px;
         }
 
-        .app-branding{display:flex;align-items:center;gap:14px}
-        .app-branding .logo{
-            width:54px;height:54px;border-radius:12px;object-fit:contain;padding:8px;background:var(--panel);
-            box-shadow:0 6px 18px rgba(47,102,246,0.12);
-        }
-        .app-branding .title{
-            font-family:'Cairo',sans-serif;font-weight:900;color:#fff;font-size:1.15rem;letter-spacing:0.2px;
-        }
-        .app-branding .subtitle{font-size:0.85rem;color:var(--muted);display:block;margin-top:2px}
-
-        /* User area */
-        .user-area{display:flex;align-items:center;gap:12px}
-        .user-avatar{width:44px;height:44px;border-radius:10px;background:var(--primary);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700}
-        .user-info{display:flex;flex-direction:column;align-items:flex-end}
-        .user-name{color:#fff;font-weight:600}
-        .logout-btn{background:transparent;border:1px solid rgba(255,255,255,0.06);color:#fff;padding:8px 12px;border-radius:10px;cursor:pointer;font-size:0.85rem}
-        .logout-btn:hover{transform:translateY(-3px);box-shadow:0 8px 24px rgba(0,0,0,0.35)}
-
-        /* محتوى رئيسي */
-        .dashboard-grid{display:grid;grid-template-columns:1fr;gap:22px;padding:22px}
-
-        .panel{
-            background: linear-gradient(180deg,var(--panel),#fbfdff);
-            border-radius:12px;padding:18px;border:1px solid rgba(11,18,32,0.04);
+        .app-branding .logo {
+            width: 45px;
+            height: 45px;
+            object-fit: contain;
         }
 
-        .section-title{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px}
-        .section-title h3{margin:0;font-family:'Cairo',sans-serif;color:var(--primary);font-weight:800}
-        .section-title .note{color:var(--muted);font-size:0.92rem}
-
-        /* شريط البطاقات الأفقي للإدارة */
-        .management-row{display:flex;gap:14px;overflow:auto;padding-bottom:6px}
-        .management-row::-webkit-scrollbar{height:8px}
-        .management-row::-webkit-scrollbar-thumb{background:linear-gradient(90deg,var(--primary),var(--accent));border-radius:8px}
-
-        /* بطاقة الميزة */
-        .feature-card{
-            min-width:150px;max-width:180px;background:linear-gradient(180deg,var(--panel),#fff);
-            border-radius:12px;padding:18px;display:flex;flex-direction:column;align-items:center;gap:8px;text-decoration:none;color:#0b1220;box-shadow:0 6px 16px rgba(16,24,40,0.06);transition:transform .35s cubic-bezier(.2,.9,.2,1), box-shadow .35s;
-            border:1px solid rgba(11,18,32,0.03);
-        }
-        .feature-card:focus,.feature-card:hover{transform:translateY(-8px);box-shadow:0 18px 40px rgba(2,6,23,0.35)}
-        .feature-card .icon{font-size:2.2rem;color:var(--primary);display:flex;align-items:center;justify-content:center;width:64px;height:64px;border-radius:12px;background:linear-gradient(135deg, rgba(47,102,246,0.12), rgba(33,197,139,0.05));}
-        .feature-card .label{font-weight:700;text-align:center}
-        .feature-card .sub{font-size:0.82rem;color:var(--muted);text-align:center}
-
-        /* بطاقات الشبكة */
-        .cards-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:14px}
-
-        /* تأثير إدخال لطيف */
-        .appear{opacity:0;transform:translateY(8px);animation:fadeUp .6s forwards}
-        .appear.delay-1{animation-delay:0.05s}
-        .appear.delay-2{animation-delay:0.12s}
-        .appear.delay-3{animation-delay:0.18s}
-        .appear.delay-4{animation-delay:0.24s}
-
-        @keyframes fadeUp{to{opacity:1;transform:none}}
-
-        /* Loading overlay */
-        .loading-overlay{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:linear-gradient(180deg,rgba(2,6,23,0.6),rgba(2,6,23,0.75));z-index:9999;backdrop-filter:blur(4px)}
-        .spinner{width:56px;height:56px;border-radius:50%;border:6px solid rgba(255,255,255,0.12);border-top-color:var(--primary);animation:spin 1s linear infinite}
-        .loading-overlay p{color:#fff;margin-top:12px;font-weight:600}
-        @keyframes spin{to{transform:rotate(360deg)}}
-
-        /* Responsive */
-        @media (max-width:900px){
-            .dashboard-wrap{margin:16px}
-            .management-row{gap:12px}
-            .feature-card{min-width:140px}
-        }
-        @media (max-width:520px){
-            body{padding:12px}
-            .app-branding .title{font-size:1rem}
-            .user-info{display:none}
-            .feature-card{padding:12px}
-            .cards-grid{grid-template-columns:repeat(auto-fill,minmax(110px,1fr))}
+        .app-branding .title {
+            font-family: 'Cairo', sans-serif;
+            font-weight: 900;
+            font-size: 1.6rem;
+            color: var(--text-primary);
         }
 
-        /* تحسين الوصول */
-        .feature-card:focus{outline:3px solid rgba(47,102,246,0.16)}
+        .user-profile-widget {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
 
+        .user-profile-widget .user-avatar {
+            width: 38px;
+            height: 38px;
+            border-radius: 50%;
+            background-color: var(--accent-blue);
+            color: #fff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+        }
+
+        .user-profile-widget .user-name {
+            font-weight: 700;
+            font-size: 0.95rem;
+            color: var(--text-primary);
+        }
+
+        .logout-btn {
+            background-color: var(--accent-danger);
+            color: white;
+            border: none;
+            padding: 6px 14px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.85rem;
+        }
+        .logout-btn:hover {
+            background-color: #dc2626;
+        }
+
+        .dashboard-main-content {
+            flex-grow: 1;
+            max-width: 1200px;
+            margin: 20px auto;
+            padding: 0 20px;
+            overflow-y: auto;
+        }
+
+        .cards-section {
+            margin-bottom: 30px;
+        }
+
+        .cards-section-title {
+            font-family: 'Cairo', sans-serif;
+            font-weight: 700;
+            font-size: 1.4rem;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .cards-grid, .management-cards-flex {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+            gap: 15px;
+        }
+
+        .feature-card {
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 20px;
+            text-align: center;
+            box-shadow: var(--shadow-light);
+            transition: all 0.3s ease;
+            text-decoration: none;
+            color: var(--text-primary);
+            background: linear-gradient(135deg, rgba(255,255,255,0.95), rgba(255,255,255,0.85));
+        }
+
+        .feature-card:hover {
+            transform: translateY(-6px);
+            box-shadow: var(--shadow-medium);
+        }
+
+        .feature-card .icon {
+            font-size: 2.2rem;
+            margin-bottom: 10px;
+        }
+
+        .feature-card .card-label {
+            font-weight: 700;
+            font-size: 1rem;
+        }
+
+        /* ألوان مختلفة للأقسام مع تدرج خفيف */
+        .management-section .feature-card { background: linear-gradient(135deg, rgba(59,130,246,0.08), #ffffff); }
+        .management-section .cards-section-title { color: var(--accent-blue); }
+        .management-section .feature-card .icon { color: var(--accent-blue); }
+
+        .reports-section .feature-card { background: linear-gradient(135deg, rgba(16,185,129,0.08), #ffffff); }
+        .reports-section .cards-section-title { color: var(--accent-green); }
+        .reports-section .feature-card .icon { color: var(--accent-green); }
+
+        .system-section .feature-card { background: linear-gradient(135deg, rgba(139,92,246,0.08), #ffffff); }
+        .system-section .cards-section-title { color: var(--accent-purple); }
+        .system-section .feature-card .icon { color: var(--accent-purple); }
     </style>
 </head>
 <body>
-
-    <div class="loading-overlay" id="loadingOverlay">
-        <div>
-            <div class="spinner"></div>
-            <p>جاري تحميل لوحة التحكم...</p>
+    <header class="app-header">
+        <div class="app-branding">
+            <img src="assets/images/logo.png" alt="شعار الشركة" class="logo">
+            <span class="title">برنامج إدارة التحصيل - النقيب للكهرباء</span>
         </div>
-    </div>
+        <div class="user-profile-widget">
+            <div class="user-avatar" id="userAvatar">م</div>
+            <span class="user-name" id="loggedInUserName">مستخدم</span>
+            <button class="logout-btn" id="logoutButton">تسجيل الخروج</button>
+        </div>
+    </header>
 
-    <div class="dashboard-wrap" role="application" aria-label="لوحة تحكم برنامج إدارة التحصيل">
-
-        <header class="app-header">
-            <div class="app-branding">
-                <img src="assets/images/logo.png" alt="شعار الشركة" class="logo" id="appLogo">
-                <div>
-                    <div class="title">برنامج إدارة التحصيل - النقيب للكهرباء</div>
-                    <div class="subtitle">لوحة تحكم احترافية ومبسطة</div>
-                </div>
+    <main class="dashboard-main-content">
+        <section class="cards-section management-section">
+            <h2 class="cards-section-title"><i class="fas fa-cogs"></i> الإدارة</h2>
+            <div class="management-cards-flex">
+                <a href="subscribers.html" class="feature-card"><i class="fas fa-users icon"></i><span class="card-label">إدارة المشتركين</span></a>
+                <a href="collectors.html" class="feature-card"><i class="fas fa-user-tie icon"></i><span class="card-label">إدارة المحصلين</span></a>
+                <a href="funds.html" class="feature-card"><i class="fas fa-landmark icon"></i><span class="card-label">إدارة الصناديق</span></a>
+                <a href="receipts.html" class="feature-card"><i class="fas fa-receipt icon"></i><span class="card-label">إدارة السندات</span></a>
+                <a href="deposits.html" class="feature-card"><i class="fas fa-cash-register icon"></i><span class="card-label">إدارة التوريد</span></a>
+                <a href="notebooks.html" class="feature-card"><i class="fas fa-book-open icon"></i><span class="card-label">إدارة الدفاتر</span></a>
             </div>
+        </section>
 
-            <div class="user-area">
-                <div class="user-info">
-                    <div class="user-name" id="loggedInUserName">زائر</div>
-                    <div class="note" style="color:var(--muted);font-size:0.82rem">مرحباً بك في النظام</div>
-                </div>
-                <div class="user-avatar" id="userAvatar">?</div>
-                <button class="logout-btn" id="logoutButton">تسجيل الخروج</button>
+        <section class="cards-section reports-section">
+            <h2 class="cards-section-title"><i class="fas fa-chart-line"></i> التقارير</h2>
+            <div class="cards-grid">
+                <a href="sub-reports.html" class="feature-card"><i class="fas fa-file-invoice-dollar icon"></i><span class="card-label">تقارير المشتركين</span></a>
+                <a href="reports.html" class="feature-card"><i class="fas fa-chart-bar icon"></i><span class="card-label">تقارير المحصلين</span></a>
+                <a href="funds-reports.html" class="feature-card"><i class="fas fa-chart-pie icon"></i><span class="card-label">تقارير الصناديق</span></a>
+                <a href="note-reports.html" class="feature-card"><i class="fas fa-file-alt icon"></i><span class="card-label">تقارير السندات</span></a>
             </div>
-        </header>
+        </section>
 
-        <main class="dashboard-grid" id="mainContent">
+        <section class="cards-section system-section">
+            <h2 class="cards-section-title"><i class="fas fa-shield-alt"></i> النظام</h2>
+            <div class="cards-grid">
+                <a href="admin_users.html" class="feature-card"><i class="fas fa-users-cog icon"></i><span class="card-label">إدارة المستخدمين</span></a>
+            </div>
+        </section>
+    </main>
 
-            <section class="panel">
-                <div class="section-title">
-                    <h3><i class="fas fa-cogs"></i>&nbsp;الإدارة</h3>
-                    <div class="note">الوصول السريع إلى صفحات الإدارة</div>
-                </div>
-
-                <div class="management-row" aria-label="روابط الإدارة">
-                    <a href="subscribers.html" class="feature-card appear delay-1" title="إدارة المشتركين">
-                        <div class="icon"><i class="fas fa-users fa-lg"></i></div>
-                        <div class="label">إدارة المشتركين</div>
-                    </a>
-
-                    <a href="collectors.html" class="feature-card appear delay-2" title="إدارة المحصلين">
-                        <div class="icon"><i class="fas fa-user-tie fa-lg"></i></div>
-                        <div class="label">إدارة المحصلين</div>
-                    </a>
-
-                    <a href="funds.html" class="feature-card appear delay-3" title="إدارة الصناديق">
-                        <div class="icon"><i class="fas fa-landmark fa-lg"></i></div>
-                        <div class="label">إدارة الصناديق</div>
-                    </a>
-
-                    <a href="receipts.html" class="feature-card appear delay-4" title="إدارة السندات">
-                        <div class="icon"><i class="fas fa-receipt fa-lg"></i></div>
-                        <div class="label">إدارة السندات</div>
-                    </a>
-
-                    <a href="deposits.html" class="feature-card appear delay-1" title="إدارة التوريد">
-                        <div class="icon"><i class="fas fa-cash-register fa-lg"></i></div>
-                        <div class="label">إدارة التوريد</div>
-                    </a>
-
-                    <a href="notebooks.html" class="feature-card appear delay-2" title="إدارة الدفاتر">
-                        <div class="icon"><i class="fas fa-book-open fa-lg"></i></div>
-                        <div class="label">إدارة الدفاتر</div>
-                    </a>
-                </div>
-            </section>
-
-            <section class="panel">
-                <div class="section-title">
-                    <h3><i class="fas fa-chart-line"></i>&nbsp;التقارير</h3>
-                    <div class="note">صفحات تقارير النظام</div>
-                </div>
-
-                <div class="cards-grid">
-                    <a href="sub-reports.html" class="feature-card appear delay-1" title="تقارير المشتركين">
-                        <div class="icon"><i class="fas fa-file-invoice-dollar"></i></div>
-                        <div class="label">تقارير المشتركين</div>
-                    </a>
-
-                    <a href="reports.html" class="feature-card appear delay-2" title="تقارير المحصلين">
-                        <div class="icon"><i class="fas fa-chart-bar"></i></div>
-                        <div class="label">تقارير المحصلين</div>
-                    </a>
-
-                    <a href="funds-reports.html" class="feature-card appear delay-3" title="تقارير الصناديق">
-                        <div class="icon"><i class="fas fa-chart-pie"></i></div>
-                        <div class="label">تقارير الصناديق</div>
-                    </a>
-
-                    <a href="note-reports.html" class="feature-card appear delay-4" title="تقارير السندات">
-                        <div class="icon"><i class="fas fa-file-alt"></i></div>
-                        <div class="label">تقارير السندات</div>
-                    </a>
-                </div>
-            </section>
-
-            <section class="panel">
-                <div class="section-title">
-                    <h3><i class="fas fa-shield-alt"></i>&nbsp;النظام</h3>
-                    <div class="note">إعدادات النظام والمستخدمين</div>
-                </div>
-
-                <div class="cards-grid">
-                    <a href="admin_users.html" class="feature-card appear delay-1" title="إدارة المستخدمين">
-                        <div class="icon"><i class="fas fa-users-cog"></i></div>
-                        <div class="label">إدارة المستخدمين</div>
-                    </a>
-                </div>
-            </section>
-
-        </main>
-
-    </div>
-
-    <script type="module">
-        import { getAuthToken, getUserInfo, logout, isAuthenticated } from './assets/js/auth-service.js';
-
-        const loadingOverlay = document.getElementById('loadingOverlay');
+    <script>
         const loggedInUserName = document.getElementById('loggedInUserName');
         const userAvatar = document.getElementById('userAvatar');
         const logoutButton = document.getElementById('logoutButton');
-        const appLogo = document.getElementById('appLogo');
 
-        document.addEventListener('DOMContentLoaded', async () => {
-            // إظهار مؤشر التحميل صغير أثناء التهيئة
-            loadingOverlay.style.display = 'flex';
-
-            // تحقق من المصادقة (إذا لم تكن الدالة موجودة في بيئتك، فافعل إعادة توجيه افتراضية)
-            if (typeof isAuthenticated === 'function' && !isAuthenticated()){
-                window.location.href = '/login.html';
-                return;
-            }
-
-            // تحضير الشعار وبيانات المستخدم
-            appLogo.src = 'assets/images/logo.png';
-            let userName = 'زائر';
-            try{
-                const info = (typeof getUserInfo === 'function') ? getUserInfo() : null;
-                userName = info && info.user && (info.user.username || info.user.name) ? (info.user.username || info.user.name) : userName;
-            }catch(e){/* silent */}
-
+        document.addEventListener('DOMContentLoaded', () => {
+            const userName = "أحمد";
             loggedInUserName.innerText = userName;
-            userAvatar.innerText = userName !== 'زائر' ? userName.charAt(0).toUpperCase() : '?';
+            userAvatar.innerText = userName.charAt(0);
 
             logoutButton.addEventListener('click', () => {
-                if(typeof logout === 'function') logout();
                 window.location.href = '/login.html';
             });
-
-            // إخفاء التحميل بعد تأثير بسيط
-            setTimeout(()=>{
-                loadingOverlay.style.opacity = '0';
-                loadingOverlay.style.transition = 'opacity .35s ease';
-                setTimeout(()=>{loadingOverlay.style.display='none'},360);
-            },420);
         });
     </script>
 </body>
