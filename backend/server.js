@@ -15,7 +15,6 @@ const fundsRouter = require('./routes/funds');
 const fundsReportsRouter = require('./routes/funds-reports');
 const subReportsRouter = require('./routes/sub-reports');
 const authRoutes = require('./routes/auth');
-const dashboardRouter = require('./routes/dashboard');
 const usersRoutes = require('./routes/users');
 const reportRoutes = require('./routes/note-reports');
 
@@ -51,7 +50,6 @@ app.use('/api/funds', fundsRouter);
 app.use('/api/funds-reports', fundsReportsRouter);
 app.use('/api/sub-reports', subReportsRouter);
 app.use('/api/auth', authRoutes);
-app.use('/api/dashboard', dashboardRouter);
 app.use('/api/users', usersRoutes);
 app.use('/api/note-reports', reportRoutes);
 

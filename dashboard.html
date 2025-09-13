@@ -3,387 +3,416 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>لوحة التحكم - نظام الفواتير</title>
+    <title>لوحة التحكم - برنامج إدارة التحصيل</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.1.1/css/all.min.css">
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script> 
+    <link rel="stylesheet" href="assets/css/styles.css"> 
     <style>
-        /* --- التصميم الاحترافي (المظهر الفاتح) --- */
-        @import url('https://fonts.googleapis.com/css2?family=Almarai:wght@400;700&display=swap');
+        /* --- أنماط خاصة بلوحة التحكم الجديدة --- */
+        @import url('https://fonts.googleapis.com/css2?family=Almarai:wght@400;700&family=Cairo:wght@700;900&display=swap');
 
         :root {
             --bg-color: #f4f7fc;
-            --sidebar-bg: #ffffff;
-            --card-bg: rgba(255, 255, 255, 0.7);
+            --header-bg: #ffffff;
+            --card-bg: #ffffff;
             --border-color: #e9ecef;
             --text-primary: #343a40;
             --text-secondary: #6c757d;
-            --accent-primary: #367BF5;
-            --accent-secondary: #42D6A4;
-            --accent-danger: #FF6B6B;
-            /* ألوان إضافية للمخططات (لم تعد مستخدمة ولكن تم تركها) */
-            --chart-color-1: #367BF5; 
-            --chart-color-2: #42D6A4; 
-            --chart-color-3: #FFCE56; 
-            --chart-color-4: #FF6B6B; 
-            --chart-color-5: #9966FF; 
-            --chart-color-6: #fd7e14; 
-            --chart-color-7: #20c997; 
-        }
+            --accent-primary: #367BF5; /* أزرق */
+            --accent-secondary: #42D6A4; /* أخضر */
+            --accent-danger: #FF6B6B; /* أحمر */
+            --accent-warning: #FFCE56; /* أصفر */
+            --accent-info: #9966FF;   /* بنفسجي */
+            --accent-dark: #212529; /* غامق */
 
-        * { margin: 0; padding: 0; box-sizing: border-box; }
+            /* تظليل الظلال */
+            --shadow-light: 0 4px 10px rgba(0, 0, 0, 0.05);
+            --shadow-medium: 0 8px 20px rgba(0, 0, 0, 0.08);
+        }
 
         body {
             font-family: 'Almarai', sans-serif;
             background-color: var(--bg-color);
             color: var(--text-primary);
-            display: flex; 
+            display: flex;
+            flex-direction: column; /* لوحة التحكم بالكامل كعمود */
+            min-height: 100vh;
         }
 
-        .sidebar {
-            width: 260px;
-            background-color: var(--sidebar-bg);
-            border-left: 1px solid var(--border-color);
-            padding: 20px;
-            height: 100vh;
-            position: fixed;
-            top: 0;
-            right: 0;
-            overflow-y: auto;
-            box-shadow: -2px 0 10px rgba(0,0,0,0.05);
-            z-index: 1000; 
+        /* --- الشريط العلوي (Header) --- */
+        .app-header {
+            background-color: var(--header-bg);
+            padding: 15px 30px;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: var(--shadow-light);
+            z-index: 100;
         }
-        .sidebar-header { text-align: center; margin-bottom: 30px; }
-        .sidebar-header h2 { font-size: 1.5rem; color: var(--accent-primary); }
-        .sidebar-nav ul { list-style: none; }
-        .sidebar-nav .nav-header {
-            color: var(--text-secondary);
-            font-size: 0.8rem;
-            text-transform: uppercase;
-            padding: 10px 0;
-            margin-top: 15px;
-            font-weight: 700;
-        }
-        .sidebar-nav a {
+
+        .app-branding {
             display: flex;
             align-items: center;
             gap: 15px;
-            color: var(--text-secondary);
-            text-decoration: none;
-            padding: 12px 15px;
-            border-radius: 8px;
-            transition: all 0.2s ease;
         }
-        .sidebar-nav a:hover, .sidebar-nav li.active a {
-            background-color: var(--accent-primary);
-            color: #fff;
-            box-shadow: 0 4px 8px rgba(54, 123, 245, 0.2);
-        }
-        .sidebar-nav a i { font-size: 1.1rem; width: 20px; text-align: center; }
 
-        .main-content {
-            flex-grow: 1;
-            margin-right: 260px; 
-            padding: 30px;
-            min-height: 100vh; 
-            transition: margin-right 0.3s ease; 
+        .app-branding .logo {
+            width: 50px; /* حجم الشعار */
+            height: 50px;
+            object-fit: contain;
         }
-        
-        .page-header { 
-            margin-bottom: 30px; 
-            display: flex; 
-            justify-content: space-between; 
-            align-items: center;
-            padding-bottom: 10px;
-            border-bottom: 1px solid var(--border-color);
-        }
-        .page-header h1 { 
-            font-size: 2rem; 
-            font-weight: 700; 
+
+        .app-branding .title {
+            font-family: 'Cairo', sans-serif; /* خط مميز للعنوان */
+            font-weight: 900;
+            font-size: 1.8rem;
             color: var(--text-primary);
         }
-        .page-header .user-info { display: flex; align-items: center; gap: 10px; }
-        .page-header .user-info img { width: 40px; height: 40px; border-radius: 50%; object-fit: cover; border: 2px solid var(--accent-primary); }
-        .page-header .user-info span { font-weight: 700; color: var(--text-primary); }
+
+        .user-profile-widget {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .user-profile-widget .user-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background-color: var(--accent-primary); /* لون خلفية دائرة الحرف الأول */
+            color: #fff;
+            font-weight: bold;
+            font-size: 1.1rem;
+            text-transform: uppercase;
+        }
+
+        .user-profile-widget .user-name {
+            font-weight: 700;
+            color: var(--text-primary);
+        }
+
         .logout-btn {
             background-color: var(--accent-danger);
             color: white;
             border: none;
             padding: 8px 15px;
-            border-radius: 5px;
+            border-radius: 8px;
             cursor: pointer;
-            transition: background-color 0.2s ease;
+            transition: background-color 0.2s ease, transform 0.2s ease;
             font-family: 'Almarai', sans-serif;
             font-weight: 400;
             font-size: 0.9rem;
         }
-        .logout-btn:hover { background-color: #e04a4a; }
-
-        .kpi-cards-grid {
-            display: grid;
-            /* تعديل الشبكة: البطاقة الأولى بعرض أكبر، والبقية تتكيف */
-            grid-template-columns: 1.5fr repeat(auto-fit, minmax(200px, 1fr)); 
-            gap: 25px;
-            margin-bottom: 30px;
-        }
-        /* لتصغير بقية البطاقات، نضمن أن البطاقة الأولى تمتد على 1.5 جزء */
-        .kpi-card:nth-child(1) { /* إجمالي التحصيل (هذا الشهر) */
-            grid-column: span 1; /* تأكد أنها لا تمتد على أكثر من عمود واحد صراحة */
-        }
-        /* ضبط حجم الخط للقيم في البطاقات الصغيرة إذا لزم الأمر */
-        .kpi-cards-grid .kpi-card:not(:first-child) .card-value {
-             font-size: 2.2rem; /* يمكن تصغيره قليلاً ليتناسب */
+        .logout-btn:hover {
+            background-color: #e04a4a;
+            transform: translateY(-2px);
         }
 
-
-        .kpi-card {
-            background: var(--card-bg);
-            backdrop-filter: blur(10px);
-            padding: 25px;
-            border-radius: 15px;
-            border: 1px solid var(--border-color);
-            transition: all 0.3s ease;
-            display: flex; 
-            align-items: center;
-            gap: 20px; 
-        }
-        .kpi-card:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 10px 20px rgba(0,0,0,0.08);
-        }
-        .kpi-card .card-icon { 
-            font-size: 2rem; 
-            padding: 15px; 
-            border-radius: 50%; 
-            flex-shrink: 0; 
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-        .icon-wallet { background-color: rgba(54, 123, 245, 0.1); color: var(--accent-primary); }
-        .icon-users { background-color: rgba(66, 214, 164, 0.1); color: var(--accent-secondary); }
-        .icon-receipt { background-color: rgba(255, 206, 86, 0.1); color: #FFCE56; }
-        .icon-danger { background-color: rgba(255, 107, 107, 0.1); color: var(--accent-danger); }
-        .kpi-card .card-label { color: var(--text-secondary); margin-bottom: 5px; font-size: 0.9rem;}
-        .kpi-card .card-value { font-size: 2.5rem; font-weight: 700; color: var(--text-primary); }
-
-        /* تعديل تخطيط الجداول لتكون مباشرة بعد KPI cards */
-        .recent-activities-grid { 
-            display: grid; 
-            grid-template-columns: 1fr 1fr; /* نفس التخطيط القديم */
-            gap: 25px; 
-            margin-bottom: 30px; 
+        /* --- المحتوى الرئيسي للوحة التحكم --- */
+        .dashboard-main-content {
+            flex-grow: 1;
+            padding: 30px;
+            max-width: 1300px; /* للتحكم في عرض المحتوى */
+            margin: 30px auto; /* توسيط المحتوى */
         }
 
-        .table-container-card {
-            background: var(--card-bg);
-            backdrop-filter: blur(10px);
-            padding: 25px;
-            border-radius: 15px;
-            border: 1px solid var(--border-color);
+        /* --- أقسام البطاقات --- */
+        .cards-section {
+            margin-bottom: 40px;
         }
-        .table-container-card h3 { 
-            margin-bottom: 20px; 
-            color: var(--text-primary);
-            font-size: 1.2rem;
-            border-bottom: 1px solid var(--border-color);
+
+        .cards-section-title {
+            font-family: 'Cairo', sans-serif;
+            font-weight: 700;
+            font-size: 1.6rem;
+            color: var(--accent-primary);
+            margin-bottom: 25px;
+            text-align: right;
+            border-bottom: 2px solid var(--accent-primary);
             padding-bottom: 10px;
+            display: inline-block; /* لجعل الخط السفلي بعرض النص فقط */
+            position: relative;
+            padding-right: 40px; /* مسافة للأيقونة */
         }
-
-        .data-table-light { width: 100%; border-collapse: collapse; }
-        .data-table-light th, .data-table-light td { padding: 12px; text-align: right; border-bottom: 1px solid var(--border-color); }
-        .data-table-light th { color: var(--text-secondary); font-weight: 500; font-size: 0.9rem;}
-        .data-table-light tr:last-child td { border-bottom: none; }
-
-        /* Loading spinner */
-        .loading-spinner {
-            text-align: center;
-            padding: 50px;
+        .cards-section-title i {
+            position: absolute;
+            right: 0;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 1.3em;
             color: var(--accent-primary);
         }
-        .loading-spinner i {
-            animation: spin 2s linear infinite;
+
+        .cards-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 25px;
+        }
+
+        .feature-card {
+            background-color: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 15px;
+            padding: 25px;
+            text-align: center;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            color: var(--text-primary);
+            box-shadow: var(--shadow-light);
+        }
+
+        .feature-card:hover {
+            transform: translateY(-8px);
+            box-shadow: var(--shadow-medium);
+            border-color: var(--accent-primary);
+        }
+
+        .feature-card .icon {
+            font-size: 3.5rem;
+            color: var(--accent-primary);
+            margin-bottom: 15px;
+            transition: color 0.3s ease;
+        }
+
+        .feature-card:hover .icon {
+            color: var(--accent-secondary); /* يتغير لون الأيقونة عند التحويم */
+        }
+
+        .feature-card .card-label {
+            font-weight: 700;
+            font-size: 1.1rem;
+            color: var(--text-primary);
+        }
+
+        /* --- Loading state --- */
+        .loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(255, 255, 255, 0.8);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            transition: opacity 0.3s ease;
+        }
+        .loading-overlay .spinner {
+            border: 5px solid #f3f3f3;
+            border-top: 5px solid var(--accent-primary);
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+        }
+        .loading-overlay p {
+            margin-top: 15px;
+            font-size: 1.1rem;
+            color: var(--text-secondary);
         }
         @keyframes spin {
             0% { transform: rotate(0deg); }
             100% { transform: rotate(360deg); }
         }
 
-        @media (max-width: 1200px) { /* تعديل نقطة التوقف للتخطيط المتجاوب */
-            .kpi-cards-grid {
-                grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); /* يعود لتخطيط عادي على الشاشات الأصغر */
+        /* --- Responsive adjustments --- */
+        @media (max-width: 768px) {
+            .app-header {
+                flex-direction: column;
+                gap: 15px;
+                padding: 15px;
             }
-            .kpi-cards-grid .kpi-card:not(:first-child) .card-value {
-                font-size: 2.5rem; /* يعود لحجم الخط الأصلي */
+            .app-branding .title {
+                font-size: 1.5rem;
+            }
+            .user-profile-widget {
+                width: 100%;
+                justify-content: space-between;
+            }
+            .dashboard-main-content {
+                padding: 20px;
+                margin: 20px auto;
+            }
+            .cards-section-title {
+                font-size: 1.4rem;
+                padding-right: 30px;
+            }
+            .cards-section-title i {
+                font-size: 1.1em;
             }
         }
 
-        @media (max-width: 992px) {
-            .recent-activities-grid { grid-template-columns: 1fr; }
-            .main-content { margin-right: 0; padding: 20px; }
-            body { flex-direction: column; }
-            .sidebar { 
-                position: relative; 
-                width: 100%; 
-                height: auto; 
-                border-left: none; 
-                border-bottom: 1px solid var(--border-color);
-                box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+        @media (max-width: 480px) {
+            .app-branding {
+                flex-direction: column;
+                text-align: center;
+            }
+            .app-branding .logo {
+                width: 40px;
+                height: 40px;
+            }
+            .app-branding .title {
+                font-size: 1.3rem;
+            }
+            .user-profile-widget .user-name {
+                display: none; /* إخفاء الاسم على الشاشات الصغيرة جداً */
+            }
+            .logout-btn {
+                padding: 6px 10px;
+                font-size: 0.8rem;
+            }
+            .feature-card {
+                padding: 20px;
+            }
+            .feature-card .icon {
+                font-size: 3rem;
+            }
+            .feature-card .card-label {
+                font-size: 1rem;
             }
         }
     </style>
 </head>
 <body>
-    <div class="main-content">
-        <header class="page-header">
-            <h1>لوحة التحكم</h1>
-            <div class="user-info">
-                <img src="https://picsum.photos/40/40?random=1" alt="صورة المستخدم" id="loggedInUserImage"> 
-                <span id="loggedInUserName"></span>
-                <button class="logout-btn" id="logoutButton">تسجيل الخروج</button>
-            </div>
-        </header>
-        <main class="page-content">
-            <div id="dashboard-container" class="loading-spinner">
-                <i class="fas fa-spinner fa-spin fa-3x"></i>
-                <p style="margin-top: 15px;">جاري تحميل لوحة التحكم...</p>
-            </div>
-        </main>
+    <div class="loading-overlay" id="loadingOverlay">
+        <div class="spinner"></div>
+        <p>جاري تحميل لوحة التحكم...</p>
     </div>
 
-    <script type="module" src="./assets/js/auth-service.js"></script> 
-    <script type="module" src="./assets/js/main-layout.js"></script>
+    <header class="app-header">
+        <div class="app-branding">
+            <img src="assets/images/logo.png" alt="شعار الشركة" class="logo">
+            <span class="title">برنامج إدارة التحصيل - النقيب للكهرباء</span>
+        </div>
+        <div class="user-profile-widget">
+            <div class="user-avatar" id="userAvatar"></div>
+            <span class="user-name" id="loggedInUserName"></span>
+            <button class="logout-btn" id="logoutButton">تسجيل الخروج</button>
+        </div>
+    </header>
 
+    <main class="dashboard-main-content">
+        <section class="cards-section">
+            <h2 class="cards-section-title"><i class="fas fa-cogs"></i> الإدارة</h2>
+            <div class="cards-grid">
+                <a href="subscribers.html" class="feature-card">
+                    <i class="fas fa-users icon"></i>
+                    <span class="card-label">إدارة المشتركين</span>
+                </a>
+                <a href="collectors.html" class="feature-card">
+                    <i class="fas fa-user-tie icon"></i>
+                    <span class="card-label">إدارة المحصلين</span>
+                </a>
+                <a href="funds.html" class="feature-card">
+                    <i class="fas fa-landmark icon"></i>
+                    <span class="card-label">إدارة الصناديق</span>
+                </a>
+                <a href="receipts.html" class="feature-card">
+                    <i class="fas fa-receipt icon"></i>
+                    <span class="card-label">إدارة السندات</span>
+                </a>
+                <a href="deposits.html" class="feature-card">
+                    <i class="fas fa-cash-register icon"></i>
+                    <span class="card-label">إدارة التوريد</span>
+                </a>
+                <a href="notebooks.html" class="feature-card">
+                    <i class="fas fa-book-open icon"></i>
+                    <span class="card-label">إدارة الدفاتر</span>
+                </a>
+            </div>
+        </section>
+
+        <section class="cards-section">
+            <h2 class="cards-section-title"><i class="fas fa-chart-line"></i> التقارير</h2>
+            <div class="cards-grid">
+                <a href="sub-reports.html" class="feature-card">
+                    <i class="fas fa-file-invoice-dollar icon"></i>
+                    <span class="card-label">تقارير المشتركين</span>
+                </a>
+                <a href="reports.html" class="feature-card">
+                    <i class="fas fa-chart-bar icon"></i>
+                    <span class="card-label">تقارير المحصلين</span>
+                </a>
+                <a href="funds-reports.html" class="feature-card">
+                    <i class="fas fa-chart-pie icon"></i>
+                    <span class="card-label">تقارير الصناديق</span>
+                </a>
+                <a href="note-reports.html" class="feature-card">
+                    <i class="fas fa-file-alt icon"></i>
+                    <span class="card-label">تقارير السندات</span>
+                </a>
+            </div>
+        </section>
+
+        <section class="cards-section">
+            <h2 class="cards-section-title"><i class="fas fa-shield-alt"></i> النظام</h2>
+            <div class="cards-grid">
+                <a href="admin_users.html" class="feature-card">
+                    <i class="fas fa-users-cog icon"></i>
+                    <span class="card-label">إدارة المستخدمين</span>
+                </a>
+                </div>
+        </section>
+    </main>
+
+    <script type="module" src="./assets/js/auth-service.js"></script>
     <script type="module">
         import { getAuthToken, getUserInfo, logout, isAuthenticated } from './assets/js/auth-service.js';
 
-        // 💡💡💡 التحقق من المصادقة قبل أي شيء آخر لتجنب "وميض الصفحة" 💡💡💡
-        if (!isAuthenticated()) {
-            window.location.href = '/login.html'; 
-            throw new Error("User not authenticated, redirecting to login."); 
-        }
-        
-        const formatNumber = (val) => (val || 0).toLocaleString('en-US');
-
-        const dashboardContainer = document.getElementById('dashboard-container');
+        const loadingOverlay = document.getElementById('loadingOverlay');
         const loggedInUserName = document.getElementById('loggedInUserName');
-        const loggedInUserImage = document.getElementById('loggedInUserImage');
+        const userAvatar = document.getElementById('userAvatar');
         const logoutButton = document.getElementById('logoutButton');
+        const appLogo = document.querySelector('.app-branding .logo');
 
-        // عرض اسم المستخدم عند التحميل
-        const userInfo = getUserInfo();
-        if (userInfo && userInfo.name) {
-            loggedInUserName.innerText = userInfo.name;
-        } else {
-            loggedInUserName.innerText = 'زائر';
-        }
-        
-        if (loggedInUserImage) {
-            loggedInUserImage.src = userInfo?.imageUrl || 'https://picsum.photos/40/40?random=' + Math.floor(Math.random() * 100);
-        }
+        document.addEventListener('DOMContentLoaded', async () => {
+            // إظهار شاشة التحميل
+            loadingOverlay.style.opacity = '1';
+            loadingOverlay.style.display = 'flex';
 
-        // إضافة مستمع لزر تسجيل الخروج
-        logoutButton.addEventListener('click', () => {
-            logout();
-            window.location.href = '/login.html';
-        });
-
-        async function initializeDashboard() {
-            try {
-                const token = getAuthToken();
-
-                const response = await fetch('https://alnaqeeb.onrender.com/api/dashboard/summary', {
-                    headers: {
-                        'x-auth-token': token
-                    }
-                });
-
-                if (!response.ok) {
-                    if (response.status === 401 || response.status === 403) {
-                        alert('صلاحيات غير كافية أو جلسة منتهية. يرجى تسجيل الدخول مرة أخرى.');
-                        logout();
-                        window.location.href = '/login.html';
-                        return;
-                    }
-                    const errorData = await response.json();
-                    throw new Error(errorData.msg || 'فشل تحميل بيانات لوحة التحكم');
-                }
-                const data = await response.json();
-                renderDashboard(data);
-            } catch (error) {
-                console.error("Dashboard Initialization Error:", error);
-                dashboardContainer.innerHTML = `
-                    <div class="kpi-card" style="background-color: #ffe0e0; color: var(--accent-danger); padding: 25px; border-radius: 15px; border: 1px solid var(--accent-danger); text-align: center; grid-column: 1 / -1; display: block;">
-                        <p style="margin-bottom: 10px; font-weight: bold;">خطأ: ${error.message}.</p>
-                        <p>يرجى التأكد من تشغيل خادم الـ Backend على <code dir="ltr">http://localhost:3000</code> والمحاولة مرة أخرى.</p>
-                        <p>إذا كانت المشكلة مستمرة، فقد تحتاج لتسجيل الدخول مجدداً.</p>
-                    </div>
-                `;
+            // 💡💡💡 التحقق من المصادقة 💡💡💡
+            if (!isAuthenticated()) {
+                window.location.href = '/login.html';
+                return; // منع استكمال التحميل
             }
-        }
 
-        function renderDashboard(data) {
-            dashboardContainer.innerHTML = `
-                <div class="kpi-cards-grid">
-                    <div class="kpi-card"><i class="fas fa-wallet card-icon icon-wallet"></i><div><div class="card-label">إجمالي التحصيل (هذا الشهر)</div><div class="card-value" data-target="${data.kpiCards.totalCollectedThisMonth}">0</div></div></div>
-                    <div class="kpi-card"><i class="fas fa-user-tie card-icon icon-users"></i><div><div class="card-label">عدد المحصلين</div><div class="card-value" data-target="${data.kpiCards.activeCollectorsCount}">0</div></div></div>
-                    <div class="kpi-card"><i class="fas fa-receipt card-icon icon-receipt"></i><div><div class="card-label">السندات الصادرة (اليوم)</div><div class="card-value" data-target="${data.kpiCards.receiptsTodayCount}">0</div></div></div>
-                    <div class="kpi-card"><i class="fas fa-exclamation-triangle card-icon icon-danger"></i><div><div class="card-label">إجمالي السندات المفقودة</div><div class="card-value" data-target="${data.kpiCards.totalMissingReceipts}">0</div></div></div>
-                </div>
-                <div class="recent-activities-grid">
-                    <div class="table-container-card"><h3>آخر 5 سندات</h3><table class="data-table-light"><thead><tr><th>رقم السند</th><th>المبلغ</th><th>المحصل</th></tr></thead><tbody id="lastReceiptsBody"></tbody></table></div>
-                    <div class="table-container-card"><h3>آخر 5 توريدات</h3><table class="data-table-light"><thead><tr><th>المبلغ</th><th>المحصل</th><th>التاريخ</th></tr></thead><tbody id="lastDepositsBody"></tbody></table></div>
-                </div>`;
-            
-            animateCounters();
-            // تم حذف استدعاء renderCharts(data);
-            renderRecentActivities(data);
-        }
+            // تحميل الشعار (يمكنك تعديل المسار)
+            appLogo.src = 'assets/images/logo.png'; // ⚠️ تأكد من وجود شعارك في هذا المسار
 
-        function animateCounters() { 
-            document.querySelectorAll('.card-value').forEach(counter => {
-                const target = +counter.getAttribute('data-target');
-                if (isNaN(target)) { counter.innerText = '0'; return; }
-                const duration = 1500;
-                let start = 0;
-                const stepTime = 20;
-                const increment = target / (duration / stepTime);
+            // عرض معلومات المستخدم
+            const userInfo = getUserInfo();
+            if (userInfo && userInfo.name) {
+                loggedInUserName.innerText = userInfo.name;
+                // عرض الحرف الأول في الدائرة
+                userAvatar.innerText = userInfo.name.charAt(0).toUpperCase();
+            } else {
+                loggedInUserName.innerText = 'زائر';
+                userAvatar.innerText = '؟';
+            }
 
-                const timer = setInterval(() => {
-                    start += increment;
-                    if (start >= target) {
-                        start = target;
-                        clearInterval(timer);
-                    }
-                    counter.innerText = formatNumber(Math.ceil(start));
-                }, stepTime);
+            // إضافة مستمع لزر تسجيل الخروج
+            logoutButton.addEventListener('click', () => {
+                logout();
+                window.location.href = '/login.html';
             });
-        }
 
-        // تم حذف دالة renderCharts بالكامل
-
-        function renderRecentActivities(data) {
-            const lastReceiptsBody = document.getElementById('lastReceiptsBody');
-            lastReceiptsBody.innerHTML = ''; 
-            if (data.recentActivities.lastReceipts && data.recentActivities.lastReceipts.length > 0) {
-                data.recentActivities.lastReceipts.forEach(r => {
-                    lastReceiptsBody.innerHTML += `<tr><td>${r.receiptNumber}</td><td>${formatNumber(r.amount)}</td><td>${r.collector?.name || '-'}</td></tr>`;
-                });
-            } else {
-                lastReceiptsBody.innerHTML = `<tr><td colspan="3" style="text-align: center; color: var(--text-secondary);">لا توجد سندات حديثة.</td></tr>`;
-            }
-
-            const lastDepositsBody = document.getElementById('lastDepositsBody');
-            lastDepositsBody.innerHTML = ''; 
-            if (data.recentActivities.lastDeposits && data.recentActivities.lastDeposits.length > 0) {
-                data.recentActivities.lastDeposits.forEach(d => {
-                    lastDepositsBody.innerHTML += `<tr><td>${formatNumber(d.amount)}</td><td>${d.collector?.name || '-'}</td><td>${new Date(d.depositDate).toLocaleDateString('en-GB')}</td></tr>`;
-                });
-            } else {
-                lastDepositsBody.innerHTML = `<tr><td colspan="3" style="text-align: center; color: var(--text-secondary);">لا توجد توريدات حديثة.</td></tr>`;
-            }
-        }
-        
-        document.addEventListener('DOMContentLoaded', initializeDashboard);
+            // إخفاء شاشة التحميل بعد انتهاء تهيئة الصفحة
+            setTimeout(() => { // تأخير بسيط لضمان ظهور التحميل
+                loadingOverlay.style.opacity = '0';
+                setTimeout(() => {
+                    loadingOverlay.style.display = 'none';
+                }, 300); // يتطابق مع مدة الانتقال
+            }, 500); // يمكن تعديل هذا التأخير حسب الحاجة
+        });
     </script>
 </body>
 </html>
