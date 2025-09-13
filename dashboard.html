@@ -33,9 +33,19 @@
             font-family: 'Almarai', sans-serif;
             background-color: var(--bg-color);
             color: var(--text-primary);
-            display: flex;
-            flex-direction: column; /* لوحة التحكم بالكامل كعمود */
+            margin: 0; /* تأكد من إزالة أي هوامش افتراضية */
+            padding: 0; /* تأكد من إزالة أي حشوات افتراضية */
             min-height: 100vh;
+            display: block; /* هام: لضمان أن الـ body لا يفرض flex على المحتوى مباشرة */
+        }
+
+        /* تأكد أن هذا الجزء موجود كما هو */
+        .dashboard-main-content {
+            flex-grow: 1;
+            padding: 30px;
+            max-width: 1300px;
+            margin: 30px auto;
+            display: block; /* تأكيد أن المحتوى الرئيسي لا يفرض flex على البطاقات */
         }
 
         /* --- الشريط العلوي (Header) --- */
