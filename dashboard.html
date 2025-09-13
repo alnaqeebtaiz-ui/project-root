@@ -5,467 +5,265 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>لوحة التحكم - برنامج إدارة التحصيل</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.1.1/css/all.min.css">
-    <link rel="stylesheet" href="assets/css/styles.css">
     <style>
-        /* --- أنماط خاصة بلوحة التحكم الجديدة --- */
-        @import url('https://fonts.googleapis.com/css2?family=Almarai:wght@400;700&family=Cairo:wght@700;900&display=swap');
+        /* خطوط */
+        @import url('https://fonts.googleapis.com/css2?family=Almarai:wght@300;400;600;700&family=Cairo:wght@700;900&display=swap');
 
-        :root {
-            --bg-color: #f4f7fc;
-            --header-bg: #ffffff;
-            --card-bg: #ffffff;
-            --border-color: #e9ecef;
-            --text-primary: #343a40;
-            --text-secondary: #6c757d;
-            --accent-primary: #367BF5; /* أزرق */
-            --accent-secondary: #42D6A4; /* أخضر */
-            --accent-danger: #FF6B6B; /* أحمر */
-            --accent-warning: #FFCE56; /* أصفر */
-            --accent-info: #9966FF;   /* بنفسجي */
-            --accent-dark: #212529; /* غامق */
-
-            /* تظليل الظلال */
-            --shadow-light: 0 4px 10px rgba(0, 0, 0, 0.05);
-            --shadow-medium: 0 8px 20px rgba(0, 0, 0, 0.08);
-
-            /* متغيرات جديدة للأحجام المقلصة */
-            --card-padding-sm: 15px;
-            --card-icon-size-sm: 2.5rem;
-            --card-label-size-sm: 0.9rem;
-            --gap-sm: 15px;
-            --section-title-size-sm: 1.4rem;
-            --section-margin-sm: 25px;
+        :root{
+            --bg:#0f1724; /* خلفية داكنة للخلفية العامة */
+            --panel:#ffffff; /* لوحات داخلية بيضاء */
+            --muted:#7b8794;
+            --primary:#2f66f6; /* أزرق جذاب */
+            --accent:#21c58b; /* أخضر ثانوي */
+            --danger:#ff6b6b;
+            --glass: rgba(255,255,255,0.06);
+            --glass-strong: rgba(255,255,255,0.09);
+            --shadow: 0 10px 30px rgba(2,6,23,0.6);
+            --radius:14px;
+            --gap:18px;
         }
 
-        /* تعديل Body ليتناسب مع الشاشة الواحدة */
-        body {
-            font-family: 'Almarai', sans-serif;
-            background-color: var(--bg-color);
-            color: var(--text-primary);
-            margin: 0;
-            padding: 0;
-            min-height: 100vh;
-            display: flex; /* اجعل الـ body فليكس لتمكين التوزيع العمودي */
-            flex-direction: column; /* الهيدر ثم المحتوى */
-            overflow: hidden; /* منع التمرير على مستوى الصفحة بالكامل */
+        /* Reset بسيط */
+        *{box-sizing:border-box}
+        html,body{height:100%}
+        body{
+            margin:0;
+            font-family:'Almarai',sans-serif;
+            background: linear-gradient(180deg,#071021 0%, #0b1b2f 100%);
+            color:#0b1220;
+            -webkit-font-smoothing:antialiased;
+            -moz-osx-font-smoothing:grayscale;
+            direction:rtl;
+            min-height:100vh;
+            display:flex;
+            align-items:center;
+            justify-content:center;
+            padding:30px;
         }
 
-        /* --- الشريط العلوي (Header) --- */
-        .app-header {
-            background-color: var(--header-bg);
-            padding: 10px 20px; /* تقليص البادينج */
-            border-bottom: 1px solid var(--border-color);
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            box-shadow: var(--shadow-light);
-            z-index: 100;
-            flex-shrink: 0; /* منع الهيدر من الانكماش */
+        /* إطار مركزي */
+        .dashboard-wrap{
+            width:100%;
+            max-width:1200px;
+            background: linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0.02));
+            border-radius:18px;
+            box-shadow: var(--shadow);
+            overflow:hidden;
+            border:1px solid rgba(255,255,255,0.04);
         }
 
-        .app-branding {
-            display: flex;
-            align-items: center;
-            gap: 10px; /* تقليص المسافة */
+        /* Header */
+        .app-header{
+            display:flex;
+            align-items:center;
+            justify-content:space-between;
+            gap:12px;
+            padding:16px 20px;
+            background: linear-gradient(90deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));
+            backdrop-filter: blur(6px);
         }
 
-        .app-branding .logo {
-            width: 40px; /* تقليص حجم الشعار */
-            height: 40px;
-            object-fit: contain;
+        .app-branding{display:flex;align-items:center;gap:14px}
+        .app-branding .logo{
+            width:54px;height:54px;border-radius:12px;object-fit:contain;padding:8px;background:var(--panel);
+            box-shadow:0 6px 18px rgba(47,102,246,0.12);
+        }
+        .app-branding .title{
+            font-family:'Cairo',sans-serif;font-weight:900;color:#fff;font-size:1.15rem;letter-spacing:0.2px;
+        }
+        .app-branding .subtitle{font-size:0.85rem;color:var(--muted);display:block;margin-top:2px}
+
+        /* User area */
+        .user-area{display:flex;align-items:center;gap:12px}
+        .user-avatar{width:44px;height:44px;border-radius:10px;background:var(--primary);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700}
+        .user-info{display:flex;flex-direction:column;align-items:flex-end}
+        .user-name{color:#fff;font-weight:600}
+        .logout-btn{background:transparent;border:1px solid rgba(255,255,255,0.06);color:#fff;padding:8px 12px;border-radius:10px;cursor:pointer;font-size:0.85rem}
+        .logout-btn:hover{transform:translateY(-3px);box-shadow:0 8px 24px rgba(0,0,0,0.35)}
+
+        /* محتوى رئيسي */
+        .dashboard-grid{display:grid;grid-template-columns:1fr;gap:22px;padding:22px}
+
+        .panel{
+            background: linear-gradient(180deg,var(--panel),#fbfdff);
+            border-radius:12px;padding:18px;border:1px solid rgba(11,18,32,0.04);
         }
 
-        .app-branding .title {
-            font-family: 'Cairo', sans-serif;
-            font-weight: 900;
-            font-size: 1.5rem; /* تقليص حجم العنوان */
-            color: var(--text-primary);
-            white-space: nowrap; /* منع العنوان من الالتفاف */
+        .section-title{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px}
+        .section-title h3{margin:0;font-family:'Cairo',sans-serif;color:var(--primary);font-weight:800}
+        .section-title .note{color:var(--muted);font-size:0.92rem}
+
+        /* شريط البطاقات الأفقي للإدارة */
+        .management-row{display:flex;gap:14px;overflow:auto;padding-bottom:6px}
+        .management-row::-webkit-scrollbar{height:8px}
+        .management-row::-webkit-scrollbar-thumb{background:linear-gradient(90deg,var(--primary),var(--accent));border-radius:8px}
+
+        /* بطاقة الميزة */
+        .feature-card{
+            min-width:150px;max-width:180px;background:linear-gradient(180deg,var(--panel),#fff);
+            border-radius:12px;padding:18px;display:flex;flex-direction:column;align-items:center;gap:8px;text-decoration:none;color:#0b1220;box-shadow:0 6px 16px rgba(16,24,40,0.06);transition:transform .35s cubic-bezier(.2,.9,.2,1), box-shadow .35s;
+            border:1px solid rgba(11,18,32,0.03);
+        }
+        .feature-card:focus,.feature-card:hover{transform:translateY(-8px);box-shadow:0 18px 40px rgba(2,6,23,0.35)}
+        .feature-card .icon{font-size:2.2rem;color:var(--primary);display:flex;align-items:center;justify-content:center;width:64px;height:64px;border-radius:12px;background:linear-gradient(135deg, rgba(47,102,246,0.12), rgba(33,197,139,0.05));}
+        .feature-card .label{font-weight:700;text-align:center}
+        .feature-card .sub{font-size:0.82rem;color:var(--muted);text-align:center}
+
+        /* بطاقات الشبكة */
+        .cards-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:14px}
+
+        /* تأثير إدخال لطيف */
+        .appear{opacity:0;transform:translateY(8px);animation:fadeUp .6s forwards}
+        .appear.delay-1{animation-delay:0.05s}
+        .appear.delay-2{animation-delay:0.12s}
+        .appear.delay-3{animation-delay:0.18s}
+        .appear.delay-4{animation-delay:0.24s}
+
+        @keyframes fadeUp{to{opacity:1;transform:none}}
+
+        /* Loading overlay */
+        .loading-overlay{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:linear-gradient(180deg,rgba(2,6,23,0.6),rgba(2,6,23,0.75));z-index:9999;backdrop-filter:blur(4px)}
+        .spinner{width:56px;height:56px;border-radius:50%;border:6px solid rgba(255,255,255,0.12);border-top-color:var(--primary);animation:spin 1s linear infinite}
+        .loading-overlay p{color:#fff;margin-top:12px;font-weight:600}
+        @keyframes spin{to{transform:rotate(360deg)}}
+
+        /* Responsive */
+        @media (max-width:900px){
+            .dashboard-wrap{margin:16px}
+            .management-row{gap:12px}
+            .feature-card{min-width:140px}
+        }
+        @media (max-width:520px){
+            body{padding:12px}
+            .app-branding .title{font-size:1rem}
+            .user-info{display:none}
+            .feature-card{padding:12px}
+            .cards-grid{grid-template-columns:repeat(auto-fill,minmax(110px,1fr))}
         }
 
-        .user-profile-widget {
-            display: flex;
-            align-items: center;
-            gap: 10px; /* تقليص المسافة */
-        }
+        /* تحسين الوصول */
+        .feature-card:focus{outline:3px solid rgba(47,102,246,0.16)}
 
-        .user-profile-widget .user-avatar {
-            width: 35px; /* تقليص حجم الأفاتار */
-            height: 35px;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            background-color: var(--accent-primary);
-            color: #fff;
-            font-weight: bold;
-            font-size: 1rem; /* تقليص حجم الخط */
-            text-transform: uppercase;
-            flex-shrink: 0; /* منع الانكماش */
-        }
-
-        .user-profile-widget .user-name {
-            font-weight: 700;
-            color: var(--text-primary);
-            font-size: 0.9rem; /* تقليص حجم الاسم */
-            white-space: nowrap; /* منع الاسم من الالتفاف */
-        }
-
-        .logout-btn {
-            background-color: var(--accent-danger);
-            color: white;
-            border: none;
-            padding: 6px 12px; /* تقليص البادينج */
-            border-radius: 6px; /* تقليص Radius */
-            cursor: pointer;
-            transition: background-color 0.2s ease, transform 0.2s ease;
-            font-family: 'Almarai', sans-serif;
-            font-weight: 400;
-            font-size: 0.8rem; /* تقليص حجم الخط */
-            flex-shrink: 0; /* منع الانكماش */
-        }
-        .logout-btn:hover {
-            background-color: #e04a4a;
-            transform: translateY(-2px);
-        }
-
-        /* --- المحتوى الرئيسي للوحة التحكم --- */
-        .dashboard-main-content {
-            flex-grow: 1; /* جعل هذا الجزء يستهلك المساحة المتبقية */
-            padding: var(--gap-sm) var-gap-sm; /* تقليص البادينج */
-            max-width: 1200px; /* تقليص أقصى عرض */
-            margin: var(--gap-sm) auto; /* توسيط المحتوى */
-            display: flex;
-            flex-direction: column; /* لترتيب الأقسام (إدارة، تقارير، نظام) عمودياً */
-            overflow-y: auto; /* السماح بالتمرير داخل المحتوى الرئيسي فقط إذا لزم الأمر */
-            -webkit-overflow-scrolling: touch; /* لتحسين التمرير على iOS */
-        }
-
-        /* --- أقسام البطاقات --- */
-        .cards-section {
-            margin-bottom: var(--section-margin-sm); /* تقليص المسافة بين الأقسام */
-            flex-shrink: 0; /* منع الأقسام من الانكماش الزائد */
-        }
-
-        .cards-section-title {
-            font-family: 'Cairo', sans-serif;
-            font-weight: 700;
-            font-size: var(--section-title-size-sm); /* تقليص حجم العنوان */
-            color: var(--accent-primary);
-            margin-bottom: var(--gap-sm); /* تقليص المسافة */
-            text-align: right;
-            border-bottom: 2px solid var(--accent-primary);
-            padding-bottom: 8px; /* تقليص البادينج */
-            display: inline-block;
-            position: relative;
-            padding-right: 30px; /* تقليص المسافة للأيقونة */
-        }
-        .cards-section-title i {
-            position: absolute;
-            right: 0;
-            top: 50%;
-            transform: translateY(-50%);
-            font-size: 1.1em; /* تقليص حجم الأيقونة */
-            color: var(--accent-primary);
-        }
-
-        /* الأقسام التي تلتف (تقارير، نظام) */
-        .cards-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); /* تقليص حجم البطاقات وأقل عرض */
-            gap: var(--gap-sm); /* تقليص المسافة بين البطاقات */
-            justify-items: stretch;
-            align-items: stretch;
-        }
-
-        /* نمط خاص ببطاقات الإدارة لتظهر في صف واحد */
-        .management-cards-flex {
-            display: flex;
-            flex-wrap: nowrap;
-            gap: var(--gap-sm); /* تقليص المسافة بين البطاقات */
-            overflow-x: auto; /* إضافة شريط تمرير أفقي إذا كانت البطاقات تتجاوز العرض */
-            padding-bottom: 8px; /* مسافة لشريط التمرير إذا ظهر */
-            scrollbar-width: thin;
-            scrollbar-color: var(--accent-primary) var(--border-color);
-        }
-
-        .management-cards-flex::-webkit-scrollbar {
-            height: 6px; /* ارتفاع شريط التمرير المقلص */
-        }
-
-        .management-cards-flex::-webkit-scrollbar-track {
-            background: var(--border-color);
-            border-radius: 10px;
-        }
-
-        .management-cards-flex::-webkit-scrollbar-thumb {
-            background-color: var(--accent-primary);
-            border-radius: 10px;
-            border: 1px solid var(--border-color);
-        }
-
-        .feature-card {
-            background-color: var(--card-bg);
-            border: 1px solid var(--border-color);
-            border-radius: 10px; /* تقليص Radius */
-            padding: var(--card-padding-sm); /* تقليص البادينج */
-            text-align: center;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            transition: all 0.3s ease;
-            text-decoration: none;
-            color: var(--text-primary);
-            box-shadow: var(--shadow-light);
-            flex-shrink: 0; /* منع البطاقات من الانكماش */
-            width: 150px; /* تعيين عرض ثابت لكل بطاقة للحفاظ على التناسق في Flex */
-            min-height: 120px; /* تقليص الحد الأدنى للارتفاع */
-        }
-
-        .feature-card:hover {
-            transform: translateY(-5px); /* تقليص حركة التحويم */
-            box-shadow: var(--shadow-medium);
-            border-color: var(--accent-primary);
-        }
-
-        .feature-card .icon {
-            font-size: var(--card-icon-size-sm); /* تقليص حجم الأيقونة */
-            color: var(--accent-primary);
-            margin-bottom: 10px; /* تقليص المسافة */
-            transition: color 0.3s ease;
-        }
-
-        .feature-card:hover .icon {
-            color: var(--accent-secondary);
-        }
-
-        .feature-card .card-label {
-            font-weight: 700;
-            font-size: var(--card-label-size-sm); /* تقليص حجم الخط */
-            color: var(--text-primary);
-            line-height: 1.3; /* تحسين تباعد الأسطر */
-        }
-
-        /* --- Loading state --- */
-        .loading-overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background-color: rgba(255, 255, 255, 0.9); /* خلفية أكثر وضوحًا */
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            z-index: 1000;
-            transition: opacity 0.3s ease;
-        }
-        .loading-overlay .spinner {
-            border: 4px solid #f3f3f3; /* تقليص حجم Spinner */
-            border-top: 4px solid var(--accent-primary);
-            border-radius: 50%;
-            width: 40px; /* تقليص حجم Spinner */
-            height: 40px;
-            animation: spin 1s linear infinite;
-        }
-        .loading-overlay p {
-            margin-top: 10px; /* تقليص المسافة */
-            font-size: 1rem; /* تقليص حجم الخط */
-            color: var(--text-secondary);
-        }
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-
-        /* --- Responsive adjustments --- */
-        @media (max-width: 992px) { /* تعديل نقطة التوقف للشاشات المتوسطة */
-            .app-branding .title {
-                font-size: 1.3rem;
-            }
-            .dashboard-main-content {
-                padding: var(--gap-sm);
-                margin: var(--gap-sm) auto;
-            }
-            .cards-section-title {
-                font-size: 1.2rem;
-                padding-right: 25px;
-            }
-            .feature-card {
-                padding: 12px;
-                min-height: 100px;
-                width: 140px;
-            }
-            .feature-card .icon {
-                font-size: 2.2rem;
-            }
-            .feature-card .card-label {
-                font-size: 0.85rem;
-            }
-            .cards-grid {
-                grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-            }
-            .management-cards-flex .feature-card {
-                width: 140px;
-            }
-        }
-
-        @media (max-width: 768px) {
-            .app-header {
-                flex-direction: column;
-                gap: 10px;
-                padding: 10px;
-            }
-            .user-profile-widget {
-                width: 100%;
-                justify-content: space-between;
-            }
-            .app-branding .title {
-                font-size: 1.2rem;
-            }
-            .dashboard-main-content {
-                padding: 10px;
-                margin: 10px auto;
-            }
-            .cards-section {
-                margin-bottom: 20px;
-            }
-            .cards-section-title {
-                font-size: 1.1rem;
-                padding-right: 20px;
-            }
-            .feature-card {
-                padding: 10px;
-                min-height: 90px;
-                width: 130px;
-            }
-            .feature-card .icon {
-                font-size: 2rem;
-            }
-            .feature-card .card-label {
-                font-size: 0.8rem;
-            }
-            .cards-grid {
-                grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
-            }
-            .management-cards-flex .feature-card {
-                width: 130px;
-            }
-        }
-
-        @media (max-width: 576px) { /* شاشات صغيرة جداً */
-            .app-branding .logo { width: 30px; height: 30px; }
-            .app-branding .title { font-size: 1rem; }
-            .user-profile-widget .user-avatar { width: 30px; height: 30px; font-size: 0.9rem; }
-            .user-profile-widget .user-name { display: none; } /* إخفاء الاسم لإفساح المجال */
-            .logout-btn { padding: 5px 8px; font-size: 0.75rem; }
-
-            .dashboard-main-content { padding: 5px; margin: 5px auto; }
-            .cards-section-title { font-size: 1rem; padding-right: 15px; }
-            .feature-card {
-                width: 110px;
-                min-height: 80px;
-                padding: 8px;
-            }
-            .feature-card .icon { font-size: 1.8rem; margin-bottom: 5px; }
-            .feature-card .card-label { font-size: 0.75rem; }
-            .cards-grid {
-                grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
-                gap: 10px;
-            }
-            .management-cards-flex {
-                gap: 10px;
-            }
-            .management-cards-flex .feature-card {
-                width: 110px;
-            }
-        }
     </style>
 </head>
 <body>
+
     <div class="loading-overlay" id="loadingOverlay">
-        <div class="spinner"></div>
-        <p>جاري تحميل لوحة التحكم...</p>
+        <div>
+            <div class="spinner"></div>
+            <p>جاري تحميل لوحة التحكم...</p>
+        </div>
     </div>
 
-    <header class="app-header">
-        <div class="app-branding">
-            <img src="assets/images/logo.png" alt="شعار الشركة" class="logo">
-            <span class="title">برنامج إدارة التحصيل - النقيب للكهرباء</span>
-        </div>
-        <div class="user-profile-widget">
-            <div class="user-avatar" id="userAvatar"></div>
-            <span class="user-name" id="loggedInUserName"></span>
-            <button class="logout-btn" id="logoutButton">تسجيل الخروج</button>
-        </div>
-    </header>
+    <div class="dashboard-wrap" role="application" aria-label="لوحة تحكم برنامج إدارة التحصيل">
 
-    <main class="dashboard-main-content">
-        <section class="cards-section">
-            <h2 class="cards-section-title"><i class="fas fa-cogs"></i> الإدارة</h2>
-            <div class="management-cards-flex"> <a href="subscribers.html" class="feature-card">
-                    <i class="fas fa-users icon"></i>
-                    <span class="card-label">إدارة المشتركين</span>
-                </a>
-                <a href="collectors.html" class="feature-card">
-                    <i class="fas fa-user-tie icon"></i>
-                    <span class="card-label">إدارة المحصلين</span>
-                </a>
-                <a href="funds.html" class="feature-card">
-                    <i class="fas fa-landmark icon"></i>
-                    <span class="card-label">إدارة الصناديق</span>
-                </a>
-                <a href="receipts.html" class="feature-card">
-                    <i class="fas fa-receipt icon"></i>
-                    <span class="card-label">إدارة السندات</span>
-                </a>
-                <a href="deposits.html" class="feature-card">
-                    <i class="fas fa-cash-register icon"></i>
-                    <span class="card-label">إدارة التوريد</span>
-                </a>
-                <a href="notebooks.html" class="feature-card">
-                    <i class="fas fa-book-open icon"></i>
-                    <span class="card-label">إدارة الدفاتر</span>
-                </a>
+        <header class="app-header">
+            <div class="app-branding">
+                <img src="assets/images/logo.png" alt="شعار الشركة" class="logo" id="appLogo">
+                <div>
+                    <div class="title">برنامج إدارة التحصيل - النقيب للكهرباء</div>
+                    <div class="subtitle">لوحة تحكم احترافية ومبسطة</div>
+                </div>
             </div>
-        </section>
 
-        <section class="cards-section">
-            <h2 class="cards-section-title"><i class="fas fa-chart-line"></i> التقارير</h2>
-            <div class="cards-grid">
-                <a href="sub-reports.html" class="feature-card">
-                    <i class="fas fa-file-invoice-dollar icon"></i>
-                    <span class="card-label">تقارير المشتركين</span>
-                </a>
-                <a href="reports.html" class="feature-card">
-                    <i class="fas fa-chart-bar icon"></i>
-                    <span class="card-label">تقارير المحصلين</span>
-                </a>
-                <a href="funds-reports.html" class="feature-card">
-                    <i class="fas fa-chart-pie icon"></i>
-                    <span class="card-label">تقارير الصناديق</span>
-                </a>
-                <a href="note-reports.html" class="feature-card">
-                    <i class="fas fa-file-alt icon"></i>
-                    <span class="card-label">تقارير السندات</span>
-                </a>
+            <div class="user-area">
+                <div class="user-info">
+                    <div class="user-name" id="loggedInUserName">زائر</div>
+                    <div class="note" style="color:var(--muted);font-size:0.82rem">مرحباً بك في النظام</div>
+                </div>
+                <div class="user-avatar" id="userAvatar">?</div>
+                <button class="logout-btn" id="logoutButton">تسجيل الخروج</button>
             </div>
-        </section>
+        </header>
 
-        <section class="cards-section">
-            <h2 class="cards-section-title"><i class="fas fa-shield-alt"></i> النظام</h2>
-            <div class="cards-grid">
-                <a href="admin_users.html" class="feature-card">
-                    <i class="fas fa-users-cog icon"></i>
-                    <span class="card-label">إدارة المستخدمين</span>
-                </a>
-            </div>
-        </section>
-    </main>
+        <main class="dashboard-grid" id="mainContent">
 
-    <script type="module" src="./assets/js/auth-service.js"></script>
+            <section class="panel">
+                <div class="section-title">
+                    <h3><i class="fas fa-cogs"></i>&nbsp;الإدارة</h3>
+                    <div class="note">الوصول السريع إلى صفحات الإدارة</div>
+                </div>
+
+                <div class="management-row" aria-label="روابط الإدارة">
+                    <a href="subscribers.html" class="feature-card appear delay-1" title="إدارة المشتركين">
+                        <div class="icon"><i class="fas fa-users fa-lg"></i></div>
+                        <div class="label">إدارة المشتركين</div>
+                    </a>
+
+                    <a href="collectors.html" class="feature-card appear delay-2" title="إدارة المحصلين">
+                        <div class="icon"><i class="fas fa-user-tie fa-lg"></i></div>
+                        <div class="label">إدارة المحصلين</div>
+                    </a>
+
+                    <a href="funds.html" class="feature-card appear delay-3" title="إدارة الصناديق">
+                        <div class="icon"><i class="fas fa-landmark fa-lg"></i></div>
+                        <div class="label">إدارة الصناديق</div>
+                    </a>
+
+                    <a href="receipts.html" class="feature-card appear delay-4" title="إدارة السندات">
+                        <div class="icon"><i class="fas fa-receipt fa-lg"></i></div>
+                        <div class="label">إدارة السندات</div>
+                    </a>
+
+                    <a href="deposits.html" class="feature-card appear delay-1" title="إدارة التوريد">
+                        <div class="icon"><i class="fas fa-cash-register fa-lg"></i></div>
+                        <div class="label">إدارة التوريد</div>
+                    </a>
+
+                    <a href="notebooks.html" class="feature-card appear delay-2" title="إدارة الدفاتر">
+                        <div class="icon"><i class="fas fa-book-open fa-lg"></i></div>
+                        <div class="label">إدارة الدفاتر</div>
+                    </a>
+                </div>
+            </section>
+
+            <section class="panel">
+                <div class="section-title">
+                    <h3><i class="fas fa-chart-line"></i>&nbsp;التقارير</h3>
+                    <div class="note">صفحات تقارير النظام</div>
+                </div>
+
+                <div class="cards-grid">
+                    <a href="sub-reports.html" class="feature-card appear delay-1" title="تقارير المشتركين">
+                        <div class="icon"><i class="fas fa-file-invoice-dollar"></i></div>
+                        <div class="label">تقارير المشتركين</div>
+                    </a>
+
+                    <a href="reports.html" class="feature-card appear delay-2" title="تقارير المحصلين">
+                        <div class="icon"><i class="fas fa-chart-bar"></i></div>
+                        <div class="label">تقارير المحصلين</div>
+                    </a>
+
+                    <a href="funds-reports.html" class="feature-card appear delay-3" title="تقارير الصناديق">
+                        <div class="icon"><i class="fas fa-chart-pie"></i></div>
+                        <div class="label">تقارير الصناديق</div>
+                    </a>
+
+                    <a href="note-reports.html" class="feature-card appear delay-4" title="تقارير السندات">
+                        <div class="icon"><i class="fas fa-file-alt"></i></div>
+                        <div class="label">تقارير السندات</div>
+                    </a>
+                </div>
+            </section>
+
+            <section class="panel">
+                <div class="section-title">
+                    <h3><i class="fas fa-shield-alt"></i>&nbsp;النظام</h3>
+                    <div class="note">إعدادات النظام والمستخدمين</div>
+                </div>
+
+                <div class="cards-grid">
+                    <a href="admin_users.html" class="feature-card appear delay-1" title="إدارة المستخدمين">
+                        <div class="icon"><i class="fas fa-users-cog"></i></div>
+                        <div class="label">إدارة المستخدمين</div>
+                    </a>
+                </div>
+            </section>
+
+        </main>
+
+    </div>
+
     <script type="module">
         import { getAuthToken, getUserInfo, logout, isAuthenticated } from './assets/js/auth-service.js';
 
@@ -473,38 +271,40 @@
         const loggedInUserName = document.getElementById('loggedInUserName');
         const userAvatar = document.getElementById('userAvatar');
         const logoutButton = document.getElementById('logoutButton');
-        const appLogo = document.querySelector('.app-branding .logo');
+        const appLogo = document.getElementById('appLogo');
 
         document.addEventListener('DOMContentLoaded', async () => {
-            loadingOverlay.style.opacity = '1';
+            // إظهار مؤشر التحميل صغير أثناء التهيئة
             loadingOverlay.style.display = 'flex';
 
-            if (!isAuthenticated()) {
+            // تحقق من المصادقة (إذا لم تكن الدالة موجودة في بيئتك، فافعل إعادة توجيه افتراضية)
+            if (typeof isAuthenticated === 'function' && !isAuthenticated()){
                 window.location.href = '/login.html';
                 return;
             }
 
+            // تحضير الشعار وبيانات المستخدم
             appLogo.src = 'assets/images/logo.png';
-
-            // 💡💡💡 تعديل عرض اسم المستخدم 💡💡💡
-            const userInfo = getUserInfo();
-            const userName = userInfo && userInfo.user && (userInfo.user.username || userInfo.user.name) ? (userInfo.user.username || userInfo.user.name) : 'زائر';
-            const userInitial = userName !== 'زائر' ? userName.charAt(0).toUpperCase() : '?';
+            let userName = 'زائر';
+            try{
+                const info = (typeof getUserInfo === 'function') ? getUserInfo() : null;
+                userName = info && info.user && (info.user.username || info.user.name) ? (info.user.username || info.user.name) : userName;
+            }catch(e){/* silent */}
 
             loggedInUserName.innerText = userName;
-            userAvatar.innerText = userInitial;
+            userAvatar.innerText = userName !== 'زائر' ? userName.charAt(0).toUpperCase() : '?';
 
             logoutButton.addEventListener('click', () => {
-                logout();
+                if(typeof logout === 'function') logout();
                 window.location.href = '/login.html';
             });
 
-            setTimeout(() => {
+            // إخفاء التحميل بعد تأثير بسيط
+            setTimeout(()=>{
                 loadingOverlay.style.opacity = '0';
-                setTimeout(() => {
-                    loadingOverlay.style.display = 'none';
-                }, 300);
-            }, 500);
+                loadingOverlay.style.transition = 'opacity .35s ease';
+                setTimeout(()=>{loadingOverlay.style.display='none'},360);
+            },420);
         });
     </script>
 </body>
