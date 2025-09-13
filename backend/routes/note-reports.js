@@ -2,14 +2,17 @@
 const express = require('express');
 const router = express.Router();
 
-const Notebook = require('../models/Notebook'); // المسار النسبي صحيح لأنه داخل مجلد الـ Backend
-const Collector = require('../models/Collector'); // المسار النسبي صحيح
+const Notebook = require('../models/Notebook');
+const Collector = require('../models/Collector');
+// ⚠️ لا تستورد أو تستخدم هنا أي middleware للمصادقة (مثل 'auth') إذا كانت هذه المسارات عامة.
+// إذا كان ملفك يحتوي على سطر مثل: const auth = require('../middleware/auth');
+// وتستخدمه في هذه المسارات، فيجب إزالته من هذه المسارات بالتحديد.
 
 // ===============================================
-// 1. تقرير نظرة عامة على حالة الدفاتر
-// GET /api/note-reports/notebook-overview (بدون حماية)
+// 1. تقرير نظرة عامة على حالة الدفاتر (بدون حماية)
+// GET /api/note-reports/notebook-overview
 // ===============================================
-router.get('/notebook-overview', async (req, res) => {
+router.get('/notebook-overview', async (req, res) => { // 👈 تأكد أنه لا يوجد هنا 'auth' أو أي middleware حماية
     try {
         const { collectorId, notebookStatus, hasMissing, hasPending } = req.query;
 
@@ -71,13 +74,13 @@ router.get('/notebook-overview', async (req, res) => {
 });
 
 // ===============================================
-// 2. تقرير تفاصيل السندات المفقودة
-// GET /api/note-reports/missing-receipts-details (بدون حماية)
+// 2. تقرير تفاصيل السندات المفقودة (بدون حماية)
+// GET /api/note-reports/missing-receipts-details
 // ===============================================
-router.get('/missing-receipts-details', async (req, res) => {
+router.get('/missing-receipts-details', async (req, res) => { // 👈 تأكد أنه لا يوجد هنا 'auth' أو أي middleware حماية
     try {
         const { collectorId, searchText } = req.query;
-
+        
         let matchQuery = {};
         if (collectorId) {
             matchQuery.collector = collectorId;
@@ -94,8 +97,8 @@ router.get('/missing-receipts-details', async (req, res) => {
                     notebookRange: `${notebook.startNumber} - ${notebook.endNumber}`,
                     collectorName: notebook.collectorName || (notebook.collector ? notebook.collector.name : 'N/A'),
                     receiptNumber: missing.receiptNumber,
-                    note: missing.notes, // 👈 يستخدم حقل 'notes'
-                    discoveredAt: missing.estimatedDate // 👈 يستخدم حقل 'estimatedDate'
+                    note: missing.notes,
+                    discoveredAt: missing.estimatedDate
                 };
                 allMissingReceipts.push(item);
             });
@@ -119,7 +122,7 @@ router.get('/missing-receipts-details', async (req, res) => {
 // مسار لجلب المحصلين - مطلوب للصفحة الأمامية (بدون حماية)
 // GET /api/note-reports/collectors
 // ===============================================
-router.get('/collectors', async (req, res) => {
+router.get('/collectors', async (req, res) => { // 👈 تأكد أنه لا يوجد هنا 'auth' أو أي middleware حماية
     try {
         const collectors = await Collector.find().select('_id name');
         res.json(collectors);
