@@ -407,11 +407,13 @@
         function renderDetailedPeriodicReport() {
             const table = document.createElement('table');
             table.className = 'data-table'; // Ensures consistent styling
-            const theadHTML = `<tr><th>المحصل</th> <th>التاريخ</th> <th>من سند</th> <th>إلى سند</th> <th>عدد السندات</th> <th>إجمالي التحصيل</th> <th>التوريد</th> <th>الصافي</th> <th>رقم سند التوريد</th> <th>تاريخ التوريد</th> <th>ملاحظات</th></tr>`;
+            // تم حذف '<th>تاريخ التوريد</th>'
+            const theadHTML = `<tr><th>المحصل</th> <th>التاريخ</th> <th>من سند</th> <th>إلى سند</th> <th>عدد السندات</th> <th>إجمالي التحصيل</th> <th>التوريد</th> <th>الصافي</th> <th>رقم سند التوريد</th> <th>ملاحظات</th></tr>`;
             let tbodyHTML = '';
             let totals = { count: 0, collected: 0, deposited: 0, net: 0 };
             currentReportData.forEach(row => {
-                tbodyHTML += `<tr ${row.isMissing ? 'style="background-color: #fff5f5;"' : ''}><td>${row.collectorName}</td><td>${row.date}</td><td>${row.fromReceipt}</td><td>${row.toReceipt}</td><td>${row.receiptCount}</td><td>${formatNumber(row.totalAmount)}</td><td>${formatNumber(row.depositAmount)}</td><td>${formatNumber(row.netAmount)}</td><td>${row.depositReceipt}</td><td>${row.depositDate}</td><td>${row.notes}</td></tr>`;
+                // تم حذف '<td>${row.depositDate}</td>'
+                tbodyHTML += `<tr ${row.isMissing ? 'style="background-color: #fff5f5;"' : ''}><td>${row.collectorName}</td><td>${row.date}</td><td>${row.fromReceipt}</td><td>${row.toReceipt}</td><td>${row.receiptCount}</td><td>${formatNumber(row.totalAmount)}</td><td>${formatNumber(row.depositAmount)}</td><td>${formatNumber(row.netAmount)}</td><td>${row.depositReceipt}</td><td>${row.notes}</td></tr>`;
                 if (!row.isMissing) {
                     totals.count += row.receiptCount;
                     totals.collected += row.totalAmount;
@@ -419,7 +421,8 @@
                     totals.net += row.netAmount || 0;
                 }
             });
-            const tfootHTML = `<tr><th colspan="4">الإجمالي</th><th>${formatNumber(totals.count)}</th><th>${formatNumber(totals.collected)}</th><th>${formatNumber(totals.deposited)}</th><th>${formatNumber(totals.net)}</th><th colspan="3"></th></tr>`;
+            // تم تعديل colspan من "3" إلى "2" حيث تم حذف عمود واحد
+            const tfootHTML = `<tr><th colspan="4">الإجمالي</th><th>${formatNumber(totals.count)}</th><th>${formatNumber(totals.collected)}</th><th>${formatNumber(totals.deposited)}</th><th>${formatNumber(totals.net)}</th><th colspan="2"></th></tr>`;
             table.innerHTML = `<thead>${theadHTML}</thead><tbody>${tbodyHTML}</tbody><tfoot>${tfootHTML}</tfoot>`;
             reportTableContainer.appendChild(table);
         }
@@ -493,9 +496,9 @@
                 switch (reportType) {
                     case 'detailed-periodic':
                         dataToExport = currentReportData.map(row => ({
-                            'اسم المحصل': row.collectorName, 'التاريخ': row.date, 'من سند': row.fromReceipt, 'إلى سند': row.toReceipt, 
+                            'اسم المتحصل': row.collectorName, 'التاريخ': row.date, 'من سند': row.fromReceipt, 'إلى سند': row.toReceipt, 
                             'عدد السندات': row.receiptCount, 'إجمالي التحصيل': row.totalAmount, 'التوريد': row.depositAmount, 
-                            'الصافي': row.netAmount, 'رقم سند التوريد': row.depositReceipt, 'تاريخ التوريد': row.depositDate, 'ملاحظات': row.notes
+                            'الصافي': row.netAmount, 'رقم سند التوريد': row.depositReceipt, /* تم حذف 'تاريخ التوريد': row.depositDate, */ 'ملاحظات': row.notes
                         }));
                         const totals = currentReportData.reduce((acc, row) => {
                             if (!row.isMissing) {
@@ -505,9 +508,9 @@
                             return acc;
                         }, { count: 0, collected: 0, deposited: 0, net: 0 });
                         dataToExport.push({});
-                        dataToExport.push({ 'اسم المحصل': 'الإجمالي', 'عدد السندات': totals.count, 'إجمالي التحصيل': totals.collected, 'التوريد': totals.deposited, 'الصافي': totals.net });
+                        // تم تعديل هذا السطر ليحذف تاريخ التوريد من صف الإجمالي في الإكسل
+                        dataToExport.push({ 'اسم المتحصل': 'الإجمالي', 'عدد السندات': totals.count, 'إجمالي التحصيل': totals.collected, 'التوريد': totals.deposited, 'الصافي': totals.net, 'رقم سند التوريد': '', 'ملاحظات': '' });
                         break;
-
                     case 'periodic-summary-table':
                         currentReportData.forEach((cycle, index) => {
                             if (index > 0) dataToExport.push({});
